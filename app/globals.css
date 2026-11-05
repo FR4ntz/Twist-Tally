@@ -1,26 +1,261 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/*
+  Palet dari slide tim: indigo gingham, denim, krem linen. Satu aksen: benang kuning
+  untuk poin dan tombol klaim. Merah hanya untuk galat.
+*/
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+  --paper: #f1ece2;
+  --paper-deep: #e6dfcf;
+  --card: #fbf8f1;
+  --ink: #1d2158;
+  --ink-soft: #474c82;
+  --denim: #2a5090;
+  --denim-soft: #dce5f3;
+  --on-fill: #fbf8f1;
+  --thread: #e8a317;
+  --thread-ink: #2a1b00;
+  --stitch: #9aa1cc;
+  --edge: #6f76a8;
+  --danger: #a3342a;
+  --danger-soft: #f6dfda;
+  --focus: #2a5090;
+  --scrim: rgb(29 33 88 / 0.55);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #12152e;
+  --paper-deep: #0d1024;
+  --card: #1b1f45;
+  --ink: #f1ece2;
+  --ink-soft: #b9bee0;
+  --denim: #8db2ee;
+  --denim-soft: #26305f;
+  --on-fill: #fbf8f1;
+  --thread: #f2b53a;
+  --thread-ink: #2a1b00;
+  --stitch: #4a5391;
+  --edge: #7f86bd;
+  --danger: #ff9c8f;
+  --danger-soft: #3d2330;
+  --focus: #f2b53a;
+  --scrim: rgb(8 10 28 / 0.7);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-londrina), "Arial Narrow", sans-serif;
+  --font-sans: var(--font-atkinson), system-ui, sans-serif;
+  --color-paper: var(--paper);
+  --color-paper-deep: var(--paper-deep);
+  --color-card: var(--card);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-denim: var(--denim);
+  --color-denim-soft: var(--denim-soft);
+  --color-thread: var(--thread);
+  --color-thread-ink: var(--thread-ink);
+  --color-stitch: var(--stitch);
+  --color-edge: var(--edge);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-fill: #2a5090;
+  --color-fill-deep: #1d2158;
+  --color-on-fill: var(--on-fill);
+  --radius-patch: 14px;
+  --radius-chip: 8px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  html {
+    background: var(--paper);
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    min-height: 100dvh;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.55;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    font-weight: 900;
+    line-height: 1.02;
+    letter-spacing: 0.01em;
+  }
+
+  a[href],
+  button:not(:disabled),
+  summary,
+  select,
+  label[for],
+  [role="button"],
+  [role="tab"],
+  [role="switch"],
+  input[type="checkbox"],
+  input[type="radio"] {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [aria-disabled="true"],
+  input:disabled,
+  select:disabled {
+    cursor: not-allowed;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+
+  ::selection {
+    background: var(--thread);
+    color: var(--thread-ink);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  /* Tambalan kain: kartu dengan garis jahitan putus-putus di dalam tepi. */
+  .patch {
+    position: relative;
+    background: var(--card);
+    border-radius: var(--radius-patch);
+    color: var(--ink);
+  }
+  .patch::after {
+    content: "";
+    position: absolute;
+    inset: 5px;
+    border: 2px dashed var(--stitch);
+    border-radius: 10px;
+    pointer-events: none;
+  }
+  .patch-denim {
+    background: #2a5090;
+    color: var(--on-fill);
+  }
+  .patch-denim::after {
+    border-color: rgb(251 248 241 / 0.5);
+  }
+  .patch-ink {
+    background: #1d2158;
+    color: var(--on-fill);
+  }
+  .patch-ink::after {
+    border-color: rgb(251 248 241 / 0.4);
+  }
+  .patch-linen {
+    background: var(--paper-deep);
+  }
+  .patch-flat::after {
+    display: none;
+  }
+
+  /* Kain gingham dari dua gradien silang, dipakai hanya sebagai pita identitas. */
+  .gingham {
+    background-color: var(--paper);
+    background-image:
+      linear-gradient(90deg, rgb(42 80 144 / 0.34) 50%, transparent 50%),
+      linear-gradient(0deg, rgb(42 80 144 / 0.34) 50%, transparent 50%);
+    background-size: 26px 26px;
+  }
+  [data-theme="dark"] .gingham {
+    background-image:
+      linear-gradient(90deg, rgb(141 178 238 / 0.22) 50%, transparent 50%),
+      linear-gradient(0deg, rgb(141 178 238 / 0.22) 50%, transparent 50%);
+  }
+
+  /* Deretan tanda silang jahitan, warna mengikuti currentColor. */
+  .xstitch {
+    height: 12px;
+    background: currentColor;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='12' viewBox='0 0 16 12'%3E%3Cpath d='M4 2l8 8M12 2l-8 8' stroke='black' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") repeat-x left center;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='12' viewBox='0 0 16 12'%3E%3Cpath d='M4 2l8 8M12 2l-8 8' stroke='black' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") repeat-x left center;
+    opacity: 0.55;
+  }
+
+  /* Struk setoran: tepi bawah bergerigi seperti kertas yang disobek. */
+  .receipt {
+    background: var(--card);
+    -webkit-mask: conic-gradient(from -45deg at bottom, transparent, #000 1deg 89deg, transparent 90deg) bottom / 16px 51% repeat-x,
+      linear-gradient(#000 0 0) top / 100% calc(100% - 7px) no-repeat;
+    mask: conic-gradient(from -45deg at bottom, transparent, #000 1deg 89deg, transparent 90deg) bottom / 16px 51% repeat-x,
+      linear-gradient(#000 0 0) top / 100% calc(100% - 7px) no-repeat;
+  }
+
+  /* Lembar dialog: naik dari bawah di ponsel, di tengah pada layar lebar. */
+  dialog.sheet {
+    margin: auto auto 0;
+    width: 100%;
+    max-width: 34rem;
+    max-height: 92dvh;
+    padding: 0;
+    border: 0;
+    border-radius: 22px 22px 0 0;
+    background: var(--card);
+    color: var(--ink);
+    overflow: auto;
+    box-shadow: 0 -12px 40px rgb(10 12 40 / 0.35);
+  }
+  @media (min-width: 640px) {
+    dialog.sheet {
+      margin: auto;
+      border-radius: 22px;
+    }
+  }
+  dialog.sheet[open] {
+    animation: sheet-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  dialog.sheet::backdrop {
+    background: var(--scrim);
+  }
+
+  @keyframes sheet-in {
+    from {
+      transform: translateY(24px);
+      opacity: 0;
+    }
+    to {
+      transform: none;
+      opacity: 1;
+    }
+  }
+
+  @keyframes thread-run {
+    to {
+      background-position: 24px 0;
+    }
+  }
+  .loading-thread {
+    height: 6px;
+    border-radius: 3px;
+    background: repeating-linear-gradient(90deg, var(--stitch) 0 12px, transparent 12px 24px);
+    animation: thread-run 900ms linear infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.pb-safe {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
 }

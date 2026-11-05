@@ -1,0 +1,185 @@
+rules_version = '2';
+
+// Prototipe tanpa Cloud Functions: klaim poin dan penukaran dijaga lewat rules
+// yang membandingkan dokumen sebelum dan sesudah batch (get vs getAfter).
+// Untuk produksi, pindahkan dua alur itu ke Cloud Functions.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function changedOnly(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+    }
+
+    // Admin pertama: boleh dibuat sekali, selama meta/bootstrap belum ada.
+    match /meta/{docId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && docId == 'bootstrap'
+        && request.resource.data.keys().hasOnly(['claimedBy', 'claimedAt'])
+        && request.resource.data.claimedBy == request.auth.uid
+        && request.resource.data.claimedAt == request.time
+        && existsAfter(/databases/$(database)/documents/admins/$(request.auth.uid));
+      allow update, delete: if false;
+    }
+
+    match /admins/{adminId} {
+      allow read: if isOwner(adminId) || isAdmin();
+      allow create: if isAdmin()
+        || (isOwner(adminId)
+            && !exists(/databases/$(database)/documents/meta/bootstrap)
+            && existsAfter(/databases/$(database)/documents/meta/bootstrap));
+      allow update, delete: if isAdmin();
+    }
+
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /bins/{binId} {
+      allow read: if true;
+      allow write: if isAdmin();
+
+      // Setelah klaim, layar tempat sampah kembali ke mode siap.
+      allow update: if signedIn()
+        && changedOnly(['currentDeposit'])
+        && request.resource.data.currentDeposit == null
+        && resource.data.currentDeposit != null
+        && getAfter(/databases/$(database)/documents/deposits/$(resource.data.currentDeposit.code)).data.status == 'claimed'
+        && getAfter(/databases/$(database)/documents/deposits/$(resource.data.currentDeposit.code)).data.claimedBy == request.auth.uid;
+    }
+
+    match /rewards/{rewardId} {
+      allow read: if true;
+      allow write: if isAdmin();
+
+      // Pengurangan stok oleh pengguna hanya sah bersama dokumen penukaran barunya.
+      allow update: if signedIn()
+        && changedOnly(['stock', 'lastRedeemId'])
+        && resource.data.active == true
+        && resource.data.stock > 0
+        && request.resource.data.stock == resource.data.stock - 1
+        && !exists(/databases/$(database)/documents/redemptions/$(request.resource.data.lastRedeemId))
+        && existsAfter(/databases/$(database)/documents/redemptions/$(request.resource.data.lastRedeemId))
+        && getAfter(/databases/$(database)/documents/redemptions/$(request.resource.data.lastRedeemId)).data.rewardId == rewardId;
+    }
+
+    // Kode setoran acak 12 karakter: get hanya untuk yang login, list hanya admin.
+    match /deposits/{code} {
+      allow get: if signedIn();
+      allow list: if isAdmin();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin()
+        || (signedIn()
+            && resource.data.status == 'pending'
+            && request.resource.data.status == 'claimed'
+            && changedOnly(['status', 'claimedBy', 'claimedAt'])
+            && request.resource.data.claimedBy == request.auth.uid
+            && request.resource.data.claimedAt == request.time
+            && request.time < resource.data.expiresAt
+            && existsAfter(/databases/$(database)/documents/users/$(request.auth.uid)/ledger/$(code)));
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+
+      allow create: if isOwner(userId)
+        && request.resource.data.keys().hasOnly(
+             ['name', 'email', 'points', 'lifetimePoints', 'totalBottles', 'createdAt'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 60
+        && request.resource.data.points == 0
+        && request.resource.data.lifetimePoints == 0
+        && request.resource.data.totalBottles == 0
+        && request.resource.data.createdAt == request.time;
+
+      allow update: if isAdmin()
+        || (isOwner(userId)
+            && (renameOk() || claimOk(userId) || redeemOk(userId)));
+
+      function renameOk() {
+        return changedOnly(['name'])
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.name.size() <= 60;
+      }
+
+      function claimOk(userId) {
+        return changedOnly(['points', 'lifetimePoints', 'totalBottles', 'lastClaimCode'])
+          && get(/databases/$(database)/documents/deposits/$(request.resource.data.lastClaimCode)).data.status == 'pending'
+          && getAfter(/databases/$(database)/documents/deposits/$(request.resource.data.lastClaimCode)).data.status == 'claimed'
+          && getAfter(/databases/$(database)/documents/deposits/$(request.resource.data.lastClaimCode)).data.claimedBy == userId
+          && request.resource.data.points
+               == resource.data.points
+                  + get(/databases/$(database)/documents/deposits/$(request.resource.data.lastClaimCode)).data.points
+          && request.resource.data.lifetimePoints
+               == resource.data.lifetimePoints
+                  + get(/databases/$(database)/documents/deposits/$(request.resource.data.lastClaimCode)).data.points
+          && request.resource.data.totalBottles
+               == resource.data.totalBottles
+                  + get(/databases/$(database)/documents/deposits/$(request.resource.data.lastClaimCode)).data.bottleCount;
+      }
+
+      function redeemOk(userId) {
+        return changedOnly(['points', 'lastRedeemId'])
+          && !exists(/databases/$(database)/documents/redemptions/$(request.resource.data.lastRedeemId))
+          && existsAfter(/databases/$(database)/documents/redemptions/$(request.resource.data.lastRedeemId))
+          && getAfter(/databases/$(database)/documents/redemptions/$(request.resource.data.lastRedeemId)).data.uid == userId
+          && request.resource.data.points >= 0
+          && request.resource.data.points
+               == resource.data.points
+                  - getAfter(/databases/$(database)/documents/redemptions/$(request.resource.data.lastRedeemId)).data.cost;
+      }
+
+      match /ledger/{entryId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isAdmin()
+          || (isOwner(userId)
+              && ((request.resource.data.type == 'setor'
+                   && entryId == request.resource.data.depositCode
+                   && request.resource.data.points
+                        == get(/databases/$(database)/documents/deposits/$(entryId)).data.points
+                   && getAfter(/databases/$(database)/documents/deposits/$(entryId)).data.claimedBy == userId)
+                  || (request.resource.data.type == 'tukar'
+                      && entryId == request.resource.data.redemptionId
+                      && getAfter(/databases/$(database)/documents/redemptions/$(entryId)).data.uid == userId
+                      && request.resource.data.points
+                           == -getAfter(/databases/$(database)/documents/redemptions/$(entryId)).data.cost)));
+        allow update, delete: if false;
+      }
+    }
+
+    match /redemptions/{redemptionId} {
+      allow read: if isAdmin()
+        || (signedIn() && resource.data.uid == request.auth.uid);
+
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(
+             ['uid', 'userName', 'rewardId', 'rewardName', 'cost', 'code', 'status', 'createdAt', 'updatedAt'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.status == 'baru'
+        && request.resource.data.createdAt == request.time
+        && get(/databases/$(database)/documents/rewards/$(request.resource.data.rewardId)).data.active == true
+        && get(/databases/$(database)/documents/rewards/$(request.resource.data.rewardId)).data.stock > 0
+        && request.resource.data.cost
+             == get(/databases/$(database)/documents/rewards/$(request.resource.data.rewardId)).data.pointsCost
+        && existsAfter(/databases/$(database)/documents/users/$(request.auth.uid)/ledger/$(redemptionId));
+
+      allow update, delete: if isAdmin();
+    }
+  }
+}
