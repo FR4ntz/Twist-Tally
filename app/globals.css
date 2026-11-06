@@ -119,6 +119,15 @@
     border-radius: 6px;
   }
 
+  /*
+    Kolom grid tanpa ukuran eksplisit ikut lebar konten terpanjang (misalnya teks nowrap),
+    sehingga halaman melebar di ponsel. Kolom bawaan dibuat bisa mengerut; utilitas grid-cols-*
+    tetap menimpa aturan ini.
+  */
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   ::selection {
     background: var(--thread);
     color: var(--thread-ink);
@@ -258,4 +267,25 @@
 
 .pb-safe {
   padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+
+/* Cetak QR tempat sampah: hanya area .print-area yang keluar di kertas. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .print-area,
+  .print-area * {
+    visibility: visible;
+  }
+  .print-area {
+    position: fixed;
+    inset: 0;
+    margin: auto;
+    height: fit-content;
+    color: #000;
+  }
+  dialog.sheet {
+    box-shadow: none;
+  }
 }

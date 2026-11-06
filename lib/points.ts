@@ -6,7 +6,8 @@ export const DEFAULT_SETTINGS: PointsSettings = {
     { label: "Sedang", upToCm: 25, points: 10 },
     { label: "Besar", upToCm: null, points: 20 },
   ],
-  depositExpiryMinutes: 15,
+  depositExpiryMinutes: 3,
+  sessionExpiryMinutes: 5,
 };
 
 export function sortTiers(tiers: PointTier[]): PointTier[] {
@@ -34,4 +35,13 @@ export function sampleHeight(tiers: PointTier[], index: number): number {
   if (tier.upToCm !== null) return tier.upToCm;
   const prev = sorted[index - 1]?.upToCm ?? 20;
   return prev + 8;
+}
+
+/** Dokumen lama bisa belum punya semua kolom; isi dengan nilai bawaan. */
+export function withDefaults(settings: Partial<PointsSettings> | null | undefined): PointsSettings {
+  return {
+    tiers: settings?.tiers?.length ? settings.tiers : DEFAULT_SETTINGS.tiers,
+    depositExpiryMinutes: settings?.depositExpiryMinutes ?? DEFAULT_SETTINGS.depositExpiryMinutes,
+    sessionExpiryMinutes: settings?.sessionExpiryMinutes ?? DEFAULT_SETTINGS.sessionExpiryMinutes,
+  };
 }

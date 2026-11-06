@@ -55,7 +55,7 @@ export function AdminRewards() {
     if (!draft.category.trim()) next.category = "Isi kategori, contoh: Merchandise.";
     if (!Number.isInteger(cost) || cost < 1) next.pointsCost = "Isi harga dalam poin, bilangan bulat minimal 1.";
     if (!Number.isInteger(stock) || stock < 0) next.stock = "Isi stok, bilangan bulat 0 atau lebih.";
-    if (draft.imageUrl.trim() && !/^https?:\/\//.test(draft.imageUrl.trim())) next.imageUrl = "Alamat gambar harus diawali http:// atau https://";
+    if (draft.imageUrl.trim() && !/^(https?:\/\/|\/)/.test(draft.imageUrl.trim())) next.imageUrl = "Alamat gambar diawali https:// atau / (untuk file di folder public).";
     setErrors(next);
     if (Object.keys(next).length > 0) return;
 
@@ -97,7 +97,7 @@ export function AdminRewards() {
     setBusy(true);
     try {
       await seedSampleRewards();
-      toast.ok("Tiga hadiah contoh ditambahkan. Ubah atau hapus sesuai kebutuhan.");
+      toast.ok("Sepuluh hadiah contoh ditambahkan. Ubah atau hapus sesuai kebutuhan.");
     } catch {
       toast.error("Gagal menambahkan contoh. Coba lagi.");
     } finally {
@@ -109,8 +109,8 @@ export function AdminRewards() {
 
   return (
     <div>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <PageTitle title="Hadiah">Katalog yang tampil di halaman Tukar. Hadiah nonaktif atau stok 0 tidak bisa ditukar.</PageTitle>
+      <div className="mb-5 flex flex-wrap items-start justify-between gap-x-3">
+        <PageTitle title="Hadiah" className="mb-4">Katalog yang tampil di halaman Tukar. Hadiah nonaktif atau stok 0 tidak bisa ditukar.</PageTitle>
         <Button variant="thread" onClick={() => open()}>
           Tambah hadiah
         </Button>
@@ -124,6 +124,11 @@ export function AdminRewards() {
         <ul className="grid gap-3">
           {rewards.data.map((r) => (
             <li key={r.id} className="patch flex flex-wrap items-center justify-between gap-3 p-4">
+              {r.imageUrl && (
+                // Alamat gambar diisi admin dan bisa dari host mana pun, jadi tidak lewat next/image.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={r.imageUrl} alt="" width={96} height={60} className="aspect-[8/5] w-24 shrink-0 rounded-[8px] bg-paper-deep object-cover" />
+              )}
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="font-display text-2xl font-black leading-tight">{r.name}</p>
@@ -155,7 +160,7 @@ export function AdminRewards() {
                 Tambah hadiah pertama
               </Button>
               <Button variant="ghost" loading={busy} onClick={seed}>
-                Isi tiga hadiah contoh
+                Isi sepuluh hadiah contoh
               </Button>
             </div>
           }
@@ -206,12 +211,12 @@ export function AdminRewards() {
             </div>
             <Field
               label="Alamat gambar (opsional)"
-              type="url"
+              type="text"
               inputMode="url"
               value={draft.imageUrl}
               onChange={(e) => setDraft({ ...draft, imageUrl: e.target.value })}
               error={errors.imageUrl}
-              hint="Tempel tautan gambar. Kosongkan untuk memakai kartu bertipografi."
+              hint="Tempel tautan https://... atau jalur file di folder public, contoh /rewards/tote-denim.svg. Kosongkan untuk kartu bertipografi."
             />
             <Switch checked={draft.active} onChange={(active) => setDraft({ ...draft, active })} label="Tampil di katalog" />
             <Button type="submit" loading={busy}>

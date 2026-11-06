@@ -25,18 +25,20 @@ export function LedgerRow({ entry }: { entry: WithId<LedgerEntry> }) {
       ? `Setor ${entry.bottles ?? 0} botol`
       : entry.type === "tukar"
         ? `Tukar ${entry.rewardName ?? "hadiah"}`
-        : `Poin kembali: ${entry.rewardName ?? "hadiah"}`;
+        : entry.type === "bonus"
+          ? "Bonus dari admin"
+          : `Poin kembali: ${entry.rewardName ?? "hadiah"}`;
   const detail =
     entry.type === "setor" && entry.binName ? `${entry.binName}, ${formatDateTime(entry.createdAt)}` : formatDateTime(entry.createdAt);
 
   return (
     <li className="flex items-center gap-3 py-3">
       <span className="grid size-11 shrink-0 place-items-center rounded-[10px] bg-paper-deep text-ink">
-        <Icon name={entry.type === "setor" ? "bottle" : "tag"} size={22} />
+        <Icon name={entry.type === "setor" ? "bottle" : entry.type === "bonus" ? "plus" : "tag"} size={22} />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate font-bold">{title}</p>
-        <p className="truncate text-sm text-ink-soft">{detail}</p>
+        <p className="break-words font-bold leading-snug">{title}</p>
+        <p className="break-words text-sm text-ink-soft">{detail}</p>
       </div>
       <p className="shrink-0 text-lg font-black tabular-nums">
         <span aria-hidden="true">{income ? "+" : "-"}</span>

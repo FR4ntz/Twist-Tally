@@ -46,7 +46,7 @@ export function ProfileView() {
 
   return (
     <div className="mx-auto grid max-w-xl gap-6">
-      <PageTitle title="Profil" />
+      <PageTitle title="Profil" className="mb-0" />
 
       <dl className="grid grid-cols-2 gap-3">
         <div className="patch patch-denim px-5 py-4">

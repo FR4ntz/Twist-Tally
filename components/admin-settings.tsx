@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { saveSettings } from "@/lib/actions";
 import { useDoc } from "@/lib/hooks";
-import { DEFAULT_SETTINGS, sortTiers } from "@/lib/points";
+import { sortTiers, withDefaults } from "@/lib/points";
 import type { PointsSettings } from "@/lib/types";
 import { toast } from "./providers";
 import { Button, ErrorState, Field, LoadingBlock, PageTitle } from "./ui";
@@ -22,12 +22,13 @@ export function AdminSettings() {
   const doc = useDoc<PointsSettings>("settings/points");
   if (doc.loading) return <LoadingBlock label="Memuat aturan poin..." />;
   if (doc.error) return <ErrorState title="Aturan poin belum bisa dimuat">Periksa koneksi internet, lalu muat ulang halaman.</ErrorState>;
-  return <Editor initial={doc.data ?? { ...DEFAULT_SETTINGS, tiers: DEFAULT_SETTINGS.tiers }} />;
+  return <Editor initial={withDefaults(doc.data)} />;
 }
 
 function Editor({ initial }: { initial: PointsSettings }) {
   const [rows, setRows] = useState<Row[]>(() => toRows(initial));
   const [expiry, setExpiry] = useState(String(initial.depositExpiryMinutes));
+  const [session, setSession] = useState(String(initial.sessionExpiryMinutes));
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -41,18 +42,22 @@ function Editor({ initial }: { initial: PointsSettings }) {
       points: Number(r.points),
     }));
     const minutes = Number(expiry);
+    const sessionMinutes = Number(session);
 
     if (tiers.some((t) => !t.label)) return setError("Setiap tier perlu nama, contoh: Kecil.");
     if (tiers.some((t) => !Number.isInteger(t.points) || t.points < 0)) return setError("Poin tiap botol harus bilangan bulat 0 atau lebih.");
     const limits = tiers.slice(0, -1).map((t) => t.upToCm as number);
     if (limits.some((n) => !Number.isFinite(n) || n <= 0)) return setError("Batas tinggi tier harus angka lebih dari 0.");
     if (limits.some((n, i) => i > 0 && n <= limits[i - 1])) return setError("Batas tinggi harus naik dari tier ke tier.");
-    if (!Number.isInteger(minutes) || minutes < 1 || minutes > 120) return setError("Masa berlaku kode antara 1 dan 120 menit.");
+    if (!Number.isInteger(minutes) || minutes < 1 || minutes > 120) return setError("Batas klaim poin antara 1 dan 120 menit.");
+    if (!Number.isInteger(sessionMinutes) || sessionMinutes < 1 || sessionMinutes > 60) {
+      return setError("Masa sambungan akun ke tempat sampah antara 1 dan 60 menit.");
+    }
 
     setError(null);
     setBusy(true);
     try {
-      await saveSettings({ tiers, depositExpiryMinutes: minutes });
+      await saveSettings({ tiers, depositExpiryMinutes: minutes, sessionExpiryMinutes: sessionMinutes });
       toast.ok("Aturan poin disimpan. Setoran berikutnya memakai aturan ini.");
     } catch {
       toast.error("Aturan belum tersimpan. Coba lagi sebentar lagi.");
@@ -101,14 +106,22 @@ function Editor({ initial }: { initial: PointsSettings }) {
             );
           })}
         </ul>
-        <div className="max-w-xs">
+        <div className="grid gap-4 sm:grid-cols-2">
           <Field
-            label="Masa berlaku kode QR (menit)"
+            label="Batas klaim poin (menit)"
             type="number"
             inputMode="numeric"
             value={expiry}
             onChange={(e) => setExpiry(e.target.value)}
-            hint="Setelah waktu ini, kode setoran tidak bisa diklaim."
+            hint="Poin dari sensor hangus bila tidak diklaim dalam waktu ini."
+          />
+          <Field
+            label="Masa sambungan akun (menit)"
+            type="number"
+            inputMode="numeric"
+            value={session}
+            onChange={(e) => setSession(e.target.value)}
+            hint="Setelah scan QR tempat sampah, akun tersambung selama waktu ini."
           />
         </div>
         {error && (

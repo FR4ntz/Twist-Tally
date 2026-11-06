@@ -3,13 +3,14 @@
 import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { formatDateTime, groupCode } from "@/lib/format";
-import { useCollection } from "@/lib/hooks";
+import { useCollection, useNow } from "@/lib/hooks";
 import type { LedgerEntry, Redemption, WithId } from "@/lib/types";
+import { useMyDeposits } from "./claims";
 import { Icon } from "./icons";
 import { LedgerRow, StatusChip, VoucherSheet } from "./rows";
-import { EmptyState, ErrorState, LinkButton, LoadingBlock, PageTitle, Points, Tabs } from "./ui";
+import { Chip, EmptyState, ErrorState, LinkButton, LoadingBlock, PageTitle, Points, Tabs } from "./ui";
 
-type Tab = "poin" | "voucher";
+type Tab = "poin" | "setoran" | "voucher";
 
 export function HistoryView() {
   const { profile } = useAuth();
@@ -20,8 +21,11 @@ export function HistoryView() {
   const ledger = useCollection<LedgerEntry>(
     uid ? { path: `users/${uid}/ledger`, orderBy: ["createdAt", "desc"], limit: 100 } : null,
   );
+  const deposits = useMyDeposits(uid);
+  const now = useNow(5000);
   const redemptions = useCollection<Redemption>(uid ? { path: "redemptions", where: [["uid", "==", uid]] } : null);
 
+  const myDeposits = [...(deposits.data ?? [])].sort((a, b) => (b.createdAt?.toMillis() ?? 0) - (a.createdAt?.toMillis() ?? 0));
   const vouchers = [...(redemptions.data ?? [])].sort(
     (a, b) => (b.createdAt?.toMillis() ?? 0) - (a.createdAt?.toMillis() ?? 0),
   );
@@ -34,7 +38,8 @@ export function HistoryView() {
         value={tab}
         onChange={setTab}
         tabs={[
-          { id: "poin", label: "Poin masuk dan keluar" },
+          { id: "poin", label: "Poin" },
+          { id: "setoran", label: "Setoran" },
           { id: "voucher", label: "Voucher" },
         ]}
       />
@@ -64,6 +69,51 @@ export function HistoryView() {
             </EmptyState>
           ))}
 
+        {tab === "setoran" &&
+          (deposits.loading ? (
+            <LoadingBlock label="Memuat setoran sensor..." />
+          ) : deposits.error ? (
+            <ErrorState title="Setoran belum bisa dimuat">Periksa koneksi internetmu, lalu buka ulang halaman ini.</ErrorState>
+          ) : myDeposits.length > 0 ? (
+            <ul className="grid gap-3">
+              {myDeposits.map((d) => {
+                const hangus = d.status === "expired" || (d.status === "pending" && d.expiresAt.toMillis() <= now);
+                return (
+                  <li key={d.id} className="patch flex items-center gap-4 p-4">
+                    <span className="grid size-12 shrink-0 place-items-center rounded-[10px] bg-paper-deep">
+                      <Icon name="bottle" size={24} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block break-words font-bold leading-snug">
+                        {d.bottleCount} botol di {d.binName}
+                      </span>
+                      <span className="block text-sm text-ink-soft">
+                        {d.binId} · {formatDateTime(d.createdAt)}
+                      </span>
+                    </span>
+                    <span className="flex shrink-0 flex-col items-end gap-1.5">
+                      <Chip tone={d.status === "claimed" ? "denim" : hangus ? "danger" : "thread"}>
+                        {d.status === "claimed" ? "Diklaim" : hangus ? "Hangus" : "Menunggu klaim"}
+                      </Chip>
+                      <Points value={d.points} size={16} className="text-sm" />
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <EmptyState
+              title="Belum ada setoran dari sensor"
+              action={
+                <LinkButton href="/scan" size="sm">
+                  Scan QR tempat sampah
+                </LinkButton>
+              }
+            >
+              Setiap kali sensor mencatat botolmu, setorannya muncul di sini, termasuk yang hangus karena tidak diklaim tepat waktu.
+            </EmptyState>
+          ))}
+
         {tab === "voucher" &&
           (redemptions.loading ? (
             <LoadingBlock label="Memuat voucher..." />
@@ -82,7 +132,7 @@ export function HistoryView() {
                       <Icon name="tag" size={24} />
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate font-display text-2xl font-black leading-tight">{v.rewardName}</span>
+                      <span className="block break-words font-display text-2xl font-black leading-tight">{v.rewardName}</span>
                       <span className="block text-sm text-ink-soft">
                         {groupCode(v.code)} · {formatDateTime(v.createdAt)}
                       </span>

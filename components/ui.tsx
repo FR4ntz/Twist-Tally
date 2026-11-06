@@ -160,7 +160,7 @@ export function SelectField({
 
 export function Chip({ children, tone = "plain" }: { children: ReactNode; tone?: "plain" | "thread" | "denim" | "danger" }) {
   const tones = {
-    plain: "bg-paper-deep text-ink",
+    plain: "border border-edge/60 bg-card text-ink",
     thread: "bg-thread text-thread-ink",
     denim: "bg-fill text-on-fill",
     danger: "bg-danger-soft text-danger",
@@ -369,7 +369,11 @@ export function Tabs<T extends string>({
     refs.current[next.id]?.focus();
   };
   return (
-    <div role="tablist" aria-label={label} className="flex gap-1 rounded-[12px] bg-paper-deep p-1">
+    <div
+      role="tablist"
+      aria-label={label}
+      className={cn("gap-1 rounded-[12px] bg-paper-deep p-1", tabs.length >= 4 ? "grid grid-cols-2 sm:flex" : "flex")}
+    >
       {tabs.map((tab, i) => (
         <button
           key={tab.id}
@@ -388,7 +392,7 @@ export function Tabs<T extends string>({
             if (event.key === "ArrowLeft") move(i - 1);
           }}
           className={cn(
-            "min-h-11 flex-1 rounded-[9px] px-3 text-sm font-bold transition-colors",
+            "min-h-11 min-w-0 flex-1 rounded-[9px] px-3 py-1.5 text-sm font-bold leading-tight transition-colors",
             value === tab.id ? "bg-card text-ink shadow-[0_1px_0_var(--edge)]" : "text-ink-soft hover:text-ink",
           )}
         >
@@ -428,9 +432,9 @@ export function FillGauge({ percent, label }: { percent: number; label?: string 
   );
 }
 
-export function PageTitle({ title, children }: { title: string; children?: ReactNode }) {
+export function PageTitle({ title, children, className = "mb-5" }: { title: string; children?: ReactNode; className?: string }) {
   return (
-    <div className="mb-5">
+    <div className={className}>
       <h1 className="text-4xl sm:text-5xl">{title}</h1>
       {children && <p className="mt-2 max-w-prose text-ink-soft">{children}</p>}
     </div>

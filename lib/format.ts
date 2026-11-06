@@ -20,19 +20,32 @@ export function groupCode(code: string, size = 4): string {
   return code.match(new RegExp(`.{1,${size}}`, "g"))?.join("-") ?? code;
 }
 
-/** Terima kode polos, kode ber-strip, atau URL hasil scan QR. */
-export function extractDepositCode(input: string): string | null {
+const SAMPAH_ID = /^SB-[A-Z0-9]{4}$/;
+
+export function newSampahId(): string {
+  return `SB-${randomChars(4)}`;
+}
+
+/** Terima ID polos (SB-7K3P) atau URL hasil scan QR tempat sampah (?sampah=SB-7K3P). */
+export function extractSampahId(input: string): string | null {
   const text = input.trim();
   if (!text) return null;
   let candidate = text;
   try {
-    const url = new URL(text);
-    candidate = url.searchParams.get("kode") ?? "";
+    candidate = new URL(text).searchParams.get("sampah") ?? "";
   } catch {
-    // bukan URL, anggap kode polos
+    // bukan URL, anggap ID polos
   }
   const cleaned = candidate.toUpperCase().replace(/[^A-Z0-9]/g, "");
-  return cleaned.length === 12 ? cleaned : null;
+  const id = cleaned.startsWith("SB") && cleaned.length === 6 ? `SB-${cleaned.slice(2)}` : "";
+  return SAMPAH_ID.test(id) ? id : null;
+}
+
+export function formatCountdown(ms: number): string {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  const minutes = Math.floor(total / 60);
+  const seconds = total % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
 export function toDate(value: Timestamp | null | undefined): Date | null {

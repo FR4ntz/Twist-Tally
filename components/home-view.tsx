@@ -5,9 +5,12 @@ import { useEffect } from "react";
 import { animate, motion, useMotionValue, useReducedMotion, useTransform } from "framer-motion";
 import { useAuth } from "@/lib/auth-context";
 import { fillPercent, formatNumber } from "@/lib/format";
-import { useCollection } from "@/lib/hooks";
+import { liveSession } from "@/lib/actions";
+import { useCollection, useNow } from "@/lib/hooks";
 import type { Bin, LedgerEntry, Reward } from "@/lib/types";
+import { BinArt } from "./bin-art";
 import { Bottle } from "./bottle-art";
+import { Countdown } from "./countdown";
 import { Kancing } from "./icons";
 import { LedgerRow } from "./rows";
 import { Chip, EmptyState, ErrorState, FillGauge, LinkButton, LoadingBlock } from "./ui";
@@ -34,11 +37,15 @@ export function HomeView() {
   const uid = profile?.id ?? null;
   const rewards = useCollection<Reward>({ path: "rewards", orderBy: ["pointsCost", "asc"], limit: 30 });
   const bins = useCollection<Bin>({ path: "bins" });
+  const now = useNow(5000);
   const ledger = useCollection<LedgerEntry>(
     uid ? { path: `users/${uid}/ledger`, orderBy: ["createdAt", "desc"], limit: 5 } : null,
   );
 
   if (!profile) return null;
+
+  const connected = (bins.data ?? []).find((b) => liveSession(b, now)?.userId === profile.id) ?? null;
+  const connectedSession = connected ? liveSession(connected, now) : null;
 
   const available = (rewards.data ?? []).filter((r) => r.active && r.stock > 0);
   const target = available.find((r) => r.pointsCost > profile.points) ?? null;
@@ -47,6 +54,22 @@ export function HomeView() {
 
   return (
     <div className="grid gap-8">
+      {connected && connectedSession && (
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+          <Link
+            href={`/hubung?sampah=${connected.sampahId}`}
+            className="patch patch-ink flex items-center gap-4 p-4 transition-transform hover:-translate-y-0.5"
+          >
+            <span className="rounded-full bg-card p-0.5 text-ink">
+              <Countdown expiresAt={connectedSession.expiresAt} totalMs={5 * 60_000} size={52} label="Sisa waktu sambungan" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-display text-2xl font-black leading-tight">Tersambung ke {connected.name}</span>
+              <span className="block text-sm text-on-fill/85">Masukkan botolmu, poinnya tercatat atas namamu.</span>
+            </span>
+          </Link>
+        </motion.div>
+      )}
       <section aria-labelledby="saldo" className="grid gap-4 md:grid-cols-[1.4fr_1fr]">
         <div className="patch patch-denim overflow-hidden p-6 sm:p-7">
           <Bottle height={84} className="pointer-events-none absolute right-4 top-3 rotate-[14deg] opacity-95" />
@@ -77,7 +100,20 @@ export function HomeView() {
           ) : target ? (
             <div>
               <p className="text-sm text-ink-soft">Hadiah terdekat</p>
-              <p className="font-display text-3xl font-black leading-tight">{target.name}</p>
+              <div className="flex items-center gap-3">
+                {target.imageUrl && (
+                  // Alamat gambar diisi admin dan bisa dari host mana pun, jadi tidak lewat next/image.
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={target.imageUrl}
+                    alt=""
+                    width={96}
+                    height={60}
+                    className="aspect-[8/5] w-24 shrink-0 rounded-[8px] bg-paper-deep object-cover"
+                  />
+                )}
+                <p className="font-display text-3xl font-black leading-tight">{target.name}</p>
+              </div>
               <div
                 role="progressbar"
                 aria-valuemin={0}
@@ -170,17 +206,27 @@ export function HomeView() {
               {bins.data.map((bin) => {
                 const percent = fillPercent(bin.bottleCount, bin.capacityBottles);
                 return (
-                  <li key={bin.id} className="patch patch-linen p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="truncate font-display text-2xl font-black leading-tight">{bin.name}</p>
-                        <p className="truncate text-sm text-ink-soft">{bin.location}</p>
-                      </div>
-                      {percent >= 80 && <Chip tone="thread">Hampir penuh</Chip>}
-                    </div>
-                    <div className="mt-3">
-                      <FillGauge percent={percent} label={`Isi ${bin.name}`} />
-                    </div>
+                  <li key={bin.id}>
+                    <Link
+                      href={`/hubung?sampah=${bin.sampahId}`}
+                      className="patch patch-linen flex items-center gap-4 p-4 transition-transform hover:-translate-y-0.5"
+                    >
+                      <BinArt percent={percent} className="w-16 shrink-0" />
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-start justify-between gap-2">
+                          <span className="min-w-0">
+                            <span className="block break-words font-display text-2xl font-black leading-tight">{bin.name}</span>
+                            <span className="block break-words text-sm text-ink-soft">
+                              {bin.location} · {bin.sampahId}
+                            </span>
+                          </span>
+                          {percent >= 80 && <Chip tone="thread">Hampir penuh</Chip>}
+                        </span>
+                        <span className="mt-2 block">
+                          <FillGauge percent={percent} label={`Isi ${bin.name}`} />
+                        </span>
+                      </span>
+                    </Link>
                   </li>
                 );
               })}

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { ActionError, redeemReward } from "@/lib/actions";
 import { useAuth } from "@/lib/auth-context";
+import { useCelebration } from "@/lib/celebrate";
 import { useCollection } from "@/lib/hooks";
 import type { Redemption, Reward, WithId } from "@/lib/types";
 import { Kancing } from "./icons";
@@ -38,6 +39,7 @@ export function RewardsView() {
       const result = await redeemReward(profile, live);
       setSelected(null);
       setVoucher(result);
+      useCelebration.getState().fire("Voucher siap", live.name);
     } catch (error) {
       toast.error(error instanceof ActionError ? error.message : "Penukaran gagal. Coba lagi sebentar lagi.");
     } finally {
@@ -65,7 +67,7 @@ export function RewardsView() {
       ) : (
         <>
           {categories.length > 2 && (
-            <div className="-mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0" role="group" aria-label="Filter kategori">
+            <div className="mb-5 flex flex-wrap gap-2" role="group" aria-label="Filter kategori">
               {categories.map((c) => (
                 <button
                   key={c}
@@ -73,7 +75,7 @@ export function RewardsView() {
                   aria-pressed={category === c}
                   onClick={() => setCategory(c)}
                   className={cn(
-                    "min-h-11 shrink-0 rounded-[10px] border-2 px-4 text-sm font-bold",
+                    "min-h-11 rounded-[10px] border-2 px-4 text-sm font-bold",
                     category === c ? "border-ink bg-ink text-paper" : "border-edge text-ink hover:bg-paper-deep",
                   )}
                 >
@@ -93,7 +95,9 @@ export function RewardsView() {
                   layout
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
+                  whileHover={{ rotate: i % 2 ? -1.8 : 1.8 }}
                   transition={{ duration: 0.25, delay: Math.min(i, 6) * 0.04 }}
+                  style={{ transformOrigin: "50% 0" }}
                 >
                   <button
                     type="button"
@@ -118,8 +122,8 @@ export function RewardsView() {
                         alt={reward.name}
                         width={320}
                         height={200}
-                        loading="lazy"
-                        className="aspect-[8/5] w-full rounded-[8px] object-cover"
+                        loading={i < 2 ? "eager" : "lazy"}
+                        className="aspect-[8/5] w-full rounded-[8px] bg-paper-deep object-cover"
                       />
                     )}
                     <span className="font-display text-3xl font-black leading-[1.02]">{reward.name}</span>
@@ -146,6 +150,17 @@ export function RewardsView() {
       <Sheet open={live !== null} onClose={() => setSelected(null)} title={live?.name ?? "Hadiah"}>
         {live && (
           <div className="grid gap-4">
+            {live.imageUrl && (
+              // Alamat gambar diisi admin dan bisa dari host mana pun, jadi tidak lewat next/image.
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={live.imageUrl}
+                alt={live.name}
+                width={560}
+                height={350}
+                className="aspect-[8/5] w-full rounded-[10px] bg-paper-deep object-cover"
+              />
+            )}
             <div className="flex flex-wrap items-center gap-2">
               <Chip>{live.category}</Chip>
               {live.isSample && <Chip>Contoh</Chip>}

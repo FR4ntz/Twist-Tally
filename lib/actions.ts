@@ -11,8 +11,9 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { db } from "./firebase";
-import { newDepositCode, newVoucherCode } from "./format";
+import { newDepositCode, newSampahId, newVoucherCode } from "./format";
 import { readBottle, sumPoints } from "./points";
+import { SAMPLE_REWARDS } from "./sample-rewards";
 import type {
   Bin,
   BottleReading,
@@ -27,46 +28,94 @@ import type {
 
 export class ActionError extends Error {}
 
-export async function claimDeposit(uid: string, code: string): Promise<{ points: number; bottles: number }> {
-  const depositRef = doc(db, "deposits", code);
+/** Sesi dianggap aktif selama waktu kedaluwarsanya belum lewat. */
+export function liveSession(bin: Pick<Bin, "activeSession">, now = Date.now()) {
+  return bin.activeSession && bin.activeSession.expiresAt.toMillis() > now ? bin.activeSession : null;
+}
+
+/** Scan QR statis tempat sampah: menyambungkan userId ke sensor sampahId. */
+export async function connectToBin(sampahId: string, user: Pick<WithId<UserDoc>, "id" | "name">, sessionMinutes: number) {
+  const binRef = doc(db, "bins", sampahId);
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(binRef);
+    if (!snap.exists()) throw new ActionError("Tempat sampah dengan ID ini tidak ditemukan.");
+    const session = liveSession(snap.data() as Bin);
+    if (session && session.userId !== user.id) {
+      throw new ActionError(`Tempat sampah ini sedang dipakai ${session.userName}. Tunggu sesinya selesai.`);
+    }
+    tx.update(binRef, {
+      activeSession: {
+        userId: user.id,
+        userName: user.name,
+        startedAt: serverTimestamp(),
+        expiresAt: Timestamp.fromMillis(Date.now() + sessionMinutes * 60_000),
+      },
+    });
+  });
+}
+
+export async function disconnectFromBin(sampahId: string) {
+  await updateDoc(doc(db, "bins", sampahId), { activeSession: null });
+}
+
+export async function claimDeposit(uid: string, depositId: string): Promise<{ points: number; bottles: number }> {
+  const depositRef = doc(db, "deposits", depositId);
   const userRef = doc(db, "users", uid);
-  const ledgerRef = doc(db, "users", uid, "ledger", code);
+  const ledgerRef = doc(db, "users", uid, "ledger", depositId);
 
   return runTransaction(db, async (tx) => {
     const [depositSnap, userSnap] = await Promise.all([tx.get(depositRef), tx.get(userRef)]);
-    if (!depositSnap.exists()) throw new ActionError("Kode setoran tidak ditemukan.");
+    if (!depositSnap.exists()) throw new ActionError("Setoran ini tidak ditemukan.");
     if (!userSnap.exists()) throw new ActionError("Profil belum siap. Muat ulang halaman, lalu coba lagi.");
 
     const deposit = depositSnap.data() as Deposit;
     const user = userSnap.data() as UserDoc;
+    if (deposit.userId !== uid) throw new ActionError("Setoran ini milik pengguna lain.");
     if (deposit.status === "claimed") throw new ActionError("Setoran ini sudah diklaim.");
     if (deposit.status === "expired" || deposit.expiresAt.toMillis() <= Date.now()) {
-      throw new ActionError("Kode setoran sudah kedaluwarsa.");
+      throw new ActionError("Poin ini sudah hangus karena tidak diklaim tepat waktu.");
     }
 
     const binRef = doc(db, "bins", deposit.binId);
     const binSnap = await tx.get(binRef);
-    if (binSnap.exists() && (binSnap.data() as Bin).currentDeposit?.code === code) {
-      tx.update(binRef, { currentDeposit: null });
+    if (binSnap.exists() && (binSnap.data() as Bin).pendingDeposit?.depositId === depositId) {
+      tx.update(binRef, { pendingDeposit: null });
     }
 
-    tx.update(depositRef, { status: "claimed", claimedBy: uid, claimedAt: serverTimestamp() });
+    tx.update(depositRef, { status: "claimed", claimedAt: serverTimestamp() });
     tx.update(userRef, {
       points: user.points + deposit.points,
       lifetimePoints: user.lifetimePoints + deposit.points,
       totalBottles: user.totalBottles + deposit.bottleCount,
-      lastClaimCode: code,
+      lastClaimCode: depositId,
     });
     tx.set(ledgerRef, {
       type: "setor",
       points: deposit.points,
       bottles: deposit.bottleCount,
       binName: deposit.binName,
-      depositCode: code,
+      depositCode: depositId,
       createdAt: serverTimestamp(),
     });
 
     return { points: deposit.points, bottles: deposit.bottleCount };
+  });
+}
+
+/** Poin yang lewat batas waktu ditandai hangus. Aman dipanggil berulang: transaksi memeriksa status terakhir. */
+export async function expireDeposit(depositId: string) {
+  const depositRef = doc(db, "deposits", depositId);
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(depositRef);
+    if (!snap.exists()) return;
+    const deposit = snap.data() as Deposit;
+    if (deposit.status !== "pending" || deposit.expiresAt.toMillis() > Date.now()) return;
+    const binRef = doc(db, "bins", deposit.binId);
+    const binSnap = await tx.get(binRef);
+    if (binSnap.exists() && (binSnap.data() as Bin).pendingDeposit?.depositId === depositId) {
+      tx.update(binRef, { pendingDeposit: null });
+    }
+    tx.update(depositRef, { status: "expired" });
   });
 }
 
@@ -140,21 +189,27 @@ export async function saveSettings(settings: PointsSettings) {
 
 export type BinInput = Pick<Bin, "name" | "location" | "capacityBottles">;
 
-export async function saveBin(id: string | null, input: BinInput) {
+/** Tempat sampah baru mendapat sampahId acak yang tidak bentrok; ID ini tercetak di QR dan tidak berubah. */
+export async function saveBin(id: string | null, input: BinInput, existingIds: string[] = []) {
   if (id) {
     await updateDoc(doc(db, "bins", id), { ...input });
     return id;
   }
-  const ref = doc(collection(db, "bins"));
-  await setDoc(ref, {
+  let sampahId = newSampahId();
+  while (existingIds.includes(sampahId)) sampahId = newSampahId();
+  await setDoc(doc(db, "bins", sampahId), {
     ...input,
+    sampahId,
     bottleCount: 0,
     totalBottles: 0,
-    currentDeposit: null,
+    pointsIssued: 0,
+    activeSession: null,
+    pendingDeposit: null,
+    lastReadingAt: null,
     lastEmptiedAt: null,
     createdAt: serverTimestamp(),
   });
-  return ref.id;
+  return sampahId;
 }
 
 export async function emptyBin(id: string) {
@@ -165,29 +220,33 @@ export async function deleteBin(id: string) {
   await deleteDoc(doc(db, "bins", id));
 }
 
-/** Meniru hasil pembacaan sensor: menyimpan setoran dan menaruh kodenya di layar tempat sampah. */
+/**
+ * Meniru sensor: membaca tinggi tiap botol, menghitung poin, lalu mencatatnya atas nama
+ * pengguna yang tersambung (userId) di tempat sampah ini (sampahId). Sensor asli menulis hal yang sama.
+ */
 export async function createDeposit(
   bin: WithId<Bin>,
   heightsCm: number[],
   settings: PointsSettings,
-): Promise<{ code: string; bottles: BottleReading[]; points: number }> {
+): Promise<{ depositId: string; userName: string; bottles: BottleReading[]; points: number }> {
+  const session = liveSession(bin);
+  if (!session) throw new ActionError("Belum ada pengguna yang tersambung ke tempat sampah ini.");
+
   const bottles = heightsCm.map((h) => readBottle(h, settings.tiers));
   const points = sumPoints(bottles);
-  const code = newDepositCode();
+  const depositId = newDepositCode();
   const expiresAt = Timestamp.fromMillis(Date.now() + settings.depositExpiryMinutes * 60_000);
 
   const batch = writeBatch(db);
-  if (bin.currentDeposit) {
-    batch.update(doc(db, "deposits", bin.currentDeposit.code), { status: "expired" });
-  }
-  batch.set(doc(db, "deposits", code), {
+  batch.set(doc(db, "deposits", depositId), {
     binId: bin.id,
     binName: bin.name,
+    userId: session.userId,
+    userName: session.userName,
     bottleCount: bottles.length,
     bottles,
     points,
     status: "pending",
-    claimedBy: null,
     claimedAt: null,
     createdAt: serverTimestamp(),
     expiresAt,
@@ -195,10 +254,13 @@ export async function createDeposit(
   batch.update(doc(db, "bins", bin.id), {
     bottleCount: increment(bottles.length),
     totalBottles: increment(bottles.length),
-    currentDeposit: { code, bottleCount: bottles.length, points, expiresAt },
+    pointsIssued: increment(points),
+    activeSession: null,
+    pendingDeposit: { depositId, userName: session.userName, bottleCount: bottles.length, points, expiresAt },
+    lastReadingAt: serverTimestamp(),
   });
   await batch.commit();
-  return { code, bottles, points };
+  return { depositId, userName: session.userName, bottles, points };
 }
 
 export type RewardInput = Pick<Reward, "name" | "description" | "category" | "pointsCost" | "stock" | "active" | "imageUrl">;
@@ -212,37 +274,8 @@ export async function saveReward(id: string | null, input: RewardInput) {
 }
 
 export async function seedSampleRewards() {
-  const samples: RewardInput[] = [
-    {
-      name: "Gantungan kunci plastik upcycle (contoh)",
-      description: "Contoh hadiah. Ganti dengan produk hasil pengolahan botol PET yang benar-benar tersedia.",
-      category: "Produk upcycle",
-      pointsCost: 50,
-      stock: 10,
-      active: true,
-      imageUrl: "",
-    },
-    {
-      name: "Tatakan gelas plastik press (contoh)",
-      description: "Contoh hadiah. Ganti dengan produk hasil pencacahan dan heat pressing yang benar-benar tersedia.",
-      category: "Produk upcycle",
-      pointsCost: 80,
-      stock: 10,
-      active: true,
-      imageUrl: "",
-    },
-    {
-      name: "Tote bag Twist & Tally (contoh)",
-      description: "Contoh hadiah merchandise. Ganti dengan merchandise yang benar-benar tersedia.",
-      category: "Merchandise",
-      pointsCost: 150,
-      stock: 10,
-      active: true,
-      imageUrl: "",
-    },
-  ];
   const batch = writeBatch(db);
-  samples.forEach((s) => batch.set(doc(collection(db, "rewards")), { ...s, isSample: true, createdAt: serverTimestamp() }));
+  SAMPLE_REWARDS.forEach((s) => batch.set(doc(collection(db, "rewards")), { ...s, isSample: true, createdAt: serverTimestamp() }));
   await batch.commit();
 }
 

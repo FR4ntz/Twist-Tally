@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
+import { motion } from "framer-motion";
 import { useAuth } from "@/lib/auth-context";
+import { ClaimBanner, CelebrationOverlay } from "./claims";
 import { Icon, type IconName } from "./icons";
 import { Logo } from "./logo";
 import { LoadingBlock, Points, cn } from "./ui";
@@ -54,12 +56,17 @@ export function AppShell({ children }: { children: ReactNode }) {
               href={item.href}
               aria-current={isActive(item.href) ? "page" : undefined}
               className={cn(
-                "flex min-h-12 items-center gap-3 rounded-[12px] px-3 font-bold transition-colors",
-                isActive(item.href) ? "bg-ink text-paper" : "text-ink hover:bg-paper-deep",
+                "relative flex min-h-12 items-center gap-3 rounded-[12px] px-3 font-bold transition-colors",
+                isActive(item.href) ? "text-paper" : "text-ink hover:bg-paper-deep",
               )}
             >
-              <Icon name={item.icon} size={22} />
-              {item.label}
+              {isActive(item.href) && (
+                <motion.span layoutId="rail-pill" className="absolute inset-0 rounded-[12px] bg-ink" transition={{ type: "spring", stiffness: 380, damping: 32 }} />
+              )}
+              <span className="relative flex items-center gap-3">
+                <Icon name={item.icon} size={22} />
+                {item.label}
+              </span>
             </Link>
           ))}
         </nav>
@@ -76,7 +83,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      <header className="sticky top-0 z-30 flex items-center justify-between border-b-2 border-dashed border-stitch bg-paper px-4 py-1 lg:hidden">
+      <header className="sticky top-0 z-30 flex items-center justify-between bg-paper px-4 py-1 lg:hidden">
         <Logo href="/" />
         <Link
           href="/riwayat"
@@ -85,9 +92,13 @@ export function AppShell({ children }: { children: ReactNode }) {
         >
           <Points value={profile.points} />
         </Link>
+        <span aria-hidden="true" className="gingham absolute inset-x-0 -bottom-[2px] h-[6px]" />
       </header>
 
-      <main className="mx-auto w-full max-w-3xl px-4 pb-36 pt-5 sm:px-6 lg:pb-12 lg:pt-8">{children}</main>
+      <main className="mx-auto w-full max-w-3xl px-4 pb-[calc(9rem+var(--claim-banner-h,0px))] pt-5 sm:px-6 lg:pb-[calc(3rem+var(--claim-banner-h,0px))] lg:pt-8">{children}</main>
+
+      <ClaimBanner />
+      <CelebrationOverlay />
 
       <nav
         aria-label="Menu utama"
@@ -101,7 +112,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Link
               href="/scan"
               aria-label="Scan QR tempat sampah"
-              aria-current={isActive("/scan") ? "page" : undefined}
+              aria-current={isActive("/scan") || isActive("/hubung") ? "page" : undefined}
               className="-mt-7 grid size-16 place-items-center rounded-full bg-ink text-paper outline-2 outline-offset-4 outline-dashed outline-thread"
             >
               <Icon name="scan" size={30} />
@@ -127,8 +138,13 @@ function NavSlot({ item, active }: { item: (typeof items)[number]; active: boole
           active ? "text-ink" : "text-ink-soft",
         )}
       >
-        <span className={cn("grid h-7 w-12 place-items-center rounded-full transition-colors", active && "bg-thread text-thread-ink")}>
-          <Icon name={item.icon} size={22} />
+        <span className={cn("relative grid h-7 w-12 place-items-center rounded-full", active && "text-thread-ink")}>
+          {active && (
+            <motion.span layoutId="nav-pill" className="absolute inset-0 rounded-full bg-thread" transition={{ type: "spring", stiffness: 420, damping: 30 }} />
+          )}
+          <span className="relative">
+            <Icon name={item.icon} size={22} />
+          </span>
         </span>
         {item.label}
       </Link>

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { fillPercent, formatDateTime, formatNumber } from "@/lib/format";
-import { useCollection } from "@/lib/hooks";
+import { useCollection, useNow } from "@/lib/hooks";
 import type { Bin, Deposit, Redemption, UserDoc } from "@/lib/types";
 import { Chip, EmptyState, ErrorState, LoadingBlock, PageTitle, Points } from "./ui";
 
@@ -10,7 +10,8 @@ export function AdminOverview() {
   const bins = useCollection<Bin>({ path: "bins" });
   const users = useCollection<UserDoc>({ path: "users", orderBy: ["lifetimePoints", "desc"], limit: 500 });
   const redemptions = useCollection<Redemption>({ path: "redemptions", orderBy: ["createdAt", "desc"], limit: 200 });
-  const deposits = useCollection<Deposit>({ path: "deposits", orderBy: ["createdAt", "desc"], limit: 8 });
+  const deposits = useCollection<Deposit>({ path: "deposits", orderBy: ["createdAt", "desc"], limit: 500 });
+  const now = useNow(10_000);
 
   const loading = bins.loading || users.loading || redemptions.loading || deposits.loading;
   const failed = bins.error || users.error || redemptions.error || deposits.error;
@@ -29,7 +30,12 @@ export function AdminOverview() {
   const pending = (redemptions.data ?? []).filter((r) => r.status === "baru" || r.status === "siap");
   const done = (redemptions.data ?? []).filter((r) => r.status === "selesai").length;
   const totalBottles = binList.reduce((sum, b) => sum + b.totalBottles, 0);
-  const pointsGiven = (users.data ?? []).reduce((sum, u) => sum + u.lifetimePoints, 0);
+  const issued = binList.reduce((sum, b) => sum + (b.pointsIssued ?? 0), 0);
+  const allDeposits = deposits.data ?? [];
+  const claimed = allDeposits.filter((d) => d.status === "claimed").reduce((sum, d) => sum + d.points, 0);
+  const lapsed = allDeposits
+    .filter((d) => d.status === "expired" || (d.status === "pending" && d.expiresAt.toMillis() <= now))
+    .reduce((sum, d) => sum + d.points, 0);
   const tasks = full.length + (pending.length > 0 ? 1 : 0);
 
   return (
@@ -82,8 +88,8 @@ export function AdminOverview() {
         </h2>
         <p className="font-display text-[4.5rem] font-black leading-none sm:text-[6rem]">{formatNumber(totalBottles)}</p>
         <p className="mt-3 max-w-xl text-on-fill/90">
-          {formatNumber(users.data?.length ?? 0)} pengguna terdaftar, {formatNumber(pointsGiven)} poin sudah dibagikan,{" "}
-          {formatNumber(done)} penukaran selesai diserahkan.
+          {formatNumber(users.data?.length ?? 0)} pengguna terdaftar. Sensor menerbitkan {formatNumber(issued)} poin,{" "}
+          {formatNumber(claimed)} diklaim dan {formatNumber(lapsed)} hangus. {formatNumber(done)} penukaran selesai diserahkan.
         </p>
       </section>
 
@@ -91,28 +97,33 @@ export function AdminOverview() {
         <h2 id="setoran" className="text-3xl">
           Setoran terbaru
         </h2>
-        {deposits.data && deposits.data.length > 0 ? (
+        {allDeposits.length > 0 ? (
           <ul className="divide-y-2 divide-dashed divide-stitch rounded-patch border-2 border-dashed border-stitch px-4">
-            {deposits.data.map((d) => (
+            {allDeposits.slice(0, 8).map((d) => (
               <li key={d.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-3">
                 <span>
                   <span className="block font-bold">
-                    {d.bottleCount} botol di {d.binName}
+                    {d.bottleCount} botol di {d.binName} ({d.binId}) untuk {d.userName}
                   </span>
                   <span className="block text-sm text-ink-soft">{formatDateTime(d.createdAt)}</span>
                 </span>
                 <span className="flex items-center gap-3">
                   <Points value={d.points} />
-                  <Chip tone={d.status === "claimed" ? "denim" : d.status === "pending" ? "thread" : "plain"}>
-                    {d.status === "claimed" ? "Diklaim" : d.status === "pending" ? "Menunggu klaim" : "Kedaluwarsa"}
-                  </Chip>
+                  {(() => {
+                    const hangus = d.status === "expired" || (d.status === "pending" && d.expiresAt.toMillis() <= now);
+                    return (
+                      <Chip tone={d.status === "claimed" ? "denim" : hangus ? "danger" : "thread"}>
+                        {d.status === "claimed" ? "Diklaim" : hangus ? "Hangus" : "Menunggu klaim"}
+                      </Chip>
+                    );
+                  })()}
                 </span>
               </li>
             ))}
           </ul>
         ) : (
           <EmptyState title="Belum ada setoran">
-            Setoran muncul setelah sensor mengirim hasil. Untuk mencoba alurnya, buka Simulator sensor.
+            Setoran muncul setelah sensor mencatat botol dari pengguna yang tersambung. Untuk mencoba alurnya, buka Simulator sensor.
           </EmptyState>
         )}
       </section>

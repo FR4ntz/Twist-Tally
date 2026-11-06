@@ -1,34 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "@/lib/auth-context";
 import { useCollection, useDoc } from "@/lib/hooks";
-import { DEFAULT_SETTINGS, sortTiers } from "@/lib/points";
+import { sortTiers, withDefaults } from "@/lib/points";
 import type { PointsSettings, Reward } from "@/lib/types";
+import { BinArt } from "./bin-art";
 import { BottleTrio } from "./bottle-art";
 import { Icon, Kancing } from "./icons";
 import { Logo } from "./logo";
-import { LinkButton, Points } from "./ui";
+import { Button, LinkButton, Points } from "./ui";
 
-const steps = [
-  {
-    title: "Masukkan botol",
-    body: "Satu per satu ke lubang tempat sampah. Sensor ultrasonik membaca tinggi tiap botol dan menghitung jumlahnya.",
-  },
-  {
-    title: "Lihat kode QR di layar",
-    body: "Setelah botol terakhir masuk, layar tempat sampah menampilkan QR berisi hasil setoranmu.",
-  },
-  {
-    title: "Scan lewat menu Scan",
-    body: "Arahkan kamera ke QR. Poin masuk ke saldo, dan satu kode hanya bisa diklaim satu kali.",
-  },
-  {
-    title: "Tukar di katalog",
-    body: "Pilih hadiah, tukar poinnya, lalu tunjukkan kode voucher ke admin untuk mengambil barangnya.",
-  },
-];
+const DEMO_CAPACITY = 12;
 
 export function Landing() {
   const { user, loading } = useAuth();
@@ -36,9 +21,28 @@ export function Landing() {
   const settingsDoc = useDoc<PointsSettings>("settings/points");
   const rewards = useCollection<Reward>({ path: "rewards", orderBy: ["pointsCost", "asc"], limit: 12 });
 
-  const settings = settingsDoc.data ?? DEFAULT_SETTINGS;
+  const settings = withDefaults(settingsDoc.data);
   const tiers = sortTiers(settings.tiers);
   const catalog = (rewards.data ?? []).filter((r) => r.active).slice(0, 3);
+
+  const steps = [
+    {
+      title: "Scan QR di tempat sampah",
+      body: "QR yang tertempel di tempat sampah menghubungkan akunmu ke sensornya. Tiap tempat sampah punya ID sendiri, misalnya SB-7K3P.",
+    },
+    {
+      title: "Masukkan botolmu",
+      body: "Sensor ultrasonik membaca tinggi tiap botol dan menghitung jumlahnya atas nama akunmu.",
+    },
+    {
+      title: `Klaim dalam ${settings.depositExpiryMinutes} menit`,
+      body: "Poin dari sensor muncul di aplikasi dengan hitung mundur. Klaim sebelum waktunya habis, kalau tidak poinnya hangus.",
+    },
+    {
+      title: "Tukar di katalog",
+      body: "Pilih hadiah, tukar poinnya, lalu tunjukkan kode voucher ke admin untuk mengambil barangnya.",
+    },
+  ];
 
   return (
     <div className="min-h-dvh overflow-x-clip">
@@ -54,8 +58,8 @@ export function Landing() {
           <div className="patch p-6 sm:p-9">
             <h1 className="text-[2.7rem] sm:text-6xl">Botol bekasmu bisa ditukar jadi produk daur ulang.</h1>
             <p className="mt-4 max-w-xl text-lg text-ink-soft">
-              Masukkan botol plastik ke tempat sampah Twist &amp; Tally. Sensor menghitung jumlah dan tinggi botol, layar
-              menampilkan kode QR, lalu kamu scan kodenya dan poin masuk ke akun.
+              Scan QR di tempat sampah Twist &amp; Tally, lalu masukkan botolmu. Sensor menghitung jumlah dan tinggi botol,
+              poinnya tercatat atas namamu, dan kamu tinggal klaim di aplikasi.
             </p>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               {member ? (
@@ -121,10 +125,7 @@ export function Landing() {
             </p>
           </div>
           <ol className="relative grid gap-7">
-            <span
-              aria-hidden="true"
-              className="absolute bottom-6 left-[15px] top-6 border-l-2 border-dashed border-stitch"
-            />
+            <span aria-hidden="true" className="absolute bottom-6 left-[15px] top-6 border-l-2 border-dashed border-stitch" />
             {steps.map((step, i) => (
               <motion.li
                 key={step.title}
@@ -145,34 +146,7 @@ export function Landing() {
         </div>
       </section>
 
-      <section className="border-y-2 border-dashed border-stitch bg-paper-deep">
-        <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
-          <h2 className="text-3xl sm:text-4xl">Poin per botol</h2>
-          <p className="mt-2 max-w-xl text-ink-soft">
-            Poin dihitung dari tinggi tiap botol yang dibaca sensor. Aturan ini bisa diubah admin kapan saja.
-          </p>
-          <ul className="mt-6 flex flex-wrap items-end gap-4">
-            {tiers.map((tier, i) => (
-              <li key={tier.label} className="patch min-w-36 flex-1 px-5 pb-5 pt-4 sm:flex-none sm:basis-52">
-                <div className="flex items-end justify-between gap-3">
-                  <span className="text-ink-soft">
-                    <Icon name="bottle" size={28 + i * 14} />
-                  </span>
-                  <Points value={tier.points} size={22} className="text-3xl" />
-                </div>
-                <p className="mt-3 font-display text-2xl font-black">{tier.label}</p>
-                <p className="text-sm text-ink-soft">
-                  {tier.upToCm === null
-                    ? `lebih dari ${tiers[i - 1]?.upToCm ?? 0} cm`
-                    : i === 0
-                      ? `sampai ${tier.upToCm} cm`
-                      : `${(tiers[i - 1]?.upToCm ?? 0) + 1} sampai ${tier.upToCm} cm`}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
+      <Calculator tiers={tiers} expiryMinutes={settings.depositExpiryMinutes} />
 
       {catalog.length > 0 && (
         <section className="mx-auto max-w-5xl px-4 py-14 sm:px-6">
@@ -184,11 +158,28 @@ export function Landing() {
           </div>
           <ul className="mt-6 grid gap-4 sm:grid-cols-3">
             {catalog.map((reward) => (
-              <li key={reward.id} className="patch patch-linen flex flex-col gap-2 p-5">
+              <motion.li
+                key={reward.id}
+                whileHover={{ rotate: 2, y: -3 }}
+                style={{ transformOrigin: "50% 0" }}
+                className="patch patch-linen flex flex-col gap-2 p-5"
+              >
+                {reward.imageUrl && (
+                  // Alamat gambar diisi admin dan bisa dari host mana pun, jadi tidak lewat next/image.
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={reward.imageUrl}
+                    alt={reward.name}
+                    width={320}
+                    height={200}
+                    loading="lazy"
+                    className="aspect-[8/5] w-full rounded-[8px] bg-paper-deep object-cover"
+                  />
+                )}
                 <span className="text-xs font-bold text-ink-soft">{reward.category}</span>
                 <span className="font-display text-2xl font-black leading-tight">{reward.name}</span>
                 <Points value={reward.pointsCost} className="mt-auto pt-2" />
-              </li>
+              </motion.li>
             ))}
           </ul>
         </section>
@@ -206,5 +197,96 @@ export function Landing() {
         </div>
       </footer>
     </div>
+  );
+}
+
+/**
+ * Demo hitung poin di browser: pengunjung menjatuhkan botol ke tempat sampah dan melihat poin naik.
+ * Angka poin memakai tier asli dari pengaturan admin. Tidak ada yang disimpan.
+ */
+function Calculator({ tiers, expiryMinutes }: { tiers: ReturnType<typeof sortTiers>; expiryMinutes: number }) {
+  const [dropped, setDropped] = useState<number[]>([]);
+  const [dropId, setDropId] = useState(0);
+  const full = dropped.length >= DEMO_CAPACITY;
+  const total = dropped.reduce((sum, i) => sum + (tiers[i]?.points ?? 0), 0);
+
+  function add(tierIndex: number) {
+    if (full) return;
+    setDropped((list) => [...list, tierIndex]);
+    setDropId((n) => n + 1);
+  }
+
+  return (
+    <section aria-labelledby="coba" className="border-y-2 border-dashed border-stitch bg-paper-deep">
+      <div className="mx-auto grid max-w-5xl gap-8 px-4 py-12 sm:px-6 md:grid-cols-[auto_1fr] md:items-center">
+        <BinArt percent={Math.round((dropped.length / DEMO_CAPACITY) * 100)} drop={dropId > 0 ? { id: dropId } : null} className="mx-auto w-56 md:w-64" />
+        <div>
+          <h2 id="coba" className="text-3xl sm:text-4xl">
+            Coba setor botol
+          </h2>
+          <p className="mt-2 max-w-xl text-ink-soft">
+            Pilih ukuran botol untuk menjatuhkannya ke tempat sampah. Poin dihitung dari tinggi botol, dengan aturan yang
+            sama seperti sensor sungguhan. Ini hanya simulasi di browser.
+          </p>
+
+          <ul className="mt-5 grid grid-cols-3 gap-3">
+            {tiers.map((tier, i) => (
+              <li key={tier.label}>
+                <button
+                  type="button"
+                  onClick={() => add(i)}
+                  disabled={full}
+                  className="patch flex min-h-32 w-full flex-col items-center justify-end gap-1 px-2 pb-3 pt-2 text-center transition-transform hover:-translate-y-1 active:translate-y-0 active:scale-95 disabled:opacity-50"
+                >
+                  <span className="text-ink-soft">
+                    <Icon name="bottle" size={30 + i * 14} />
+                  </span>
+                  <span className="font-display text-xl font-black leading-none">{tier.label}</span>
+                  <span className="text-xs text-ink-soft">
+                    {tier.upToCm === null
+                      ? `di atas ${tiers[i - 1]?.upToCm ?? 0} cm`
+                      : i === 0
+                        ? `sampai ${tier.upToCm} cm`
+                        : `${(tiers[i - 1]?.upToCm ?? 0) + 1} sampai ${tier.upToCm} cm`}
+                  </span>
+                  <Points value={tier.points} size={16} className="text-sm" />
+                  <span className="sr-only">. Tambah satu botol {tier.label.toLowerCase()}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-patch bg-card px-5 py-4" aria-live="polite">
+            <div>
+              <p className="text-sm text-ink-soft">
+                {dropped.length === 0
+                  ? "Belum ada botol di dalam."
+                  : full
+                    ? "Tempat sampah penuh. Kosongkan untuk mencoba lagi."
+                    : `${dropped.length} botol di dalam`}
+              </p>
+              <AnimatePresence mode="popLayout">
+                <motion.p
+                  key={total}
+                  initial={{ y: -10, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  className="flex items-center gap-2 font-display text-5xl font-black leading-none"
+                >
+                  <Kancing size={30} className="text-thread [--kancing-hole:#2a1b00]" />
+                  {total}
+                  <span className="text-xl font-bold">poin</span>
+                </motion.p>
+              </AnimatePresence>
+            </div>
+            <Button variant="ghost" size="sm" disabled={dropped.length === 0} onClick={() => setDropped([])}>
+              Kosongkan
+            </Button>
+          </div>
+          <p className="mt-3 text-sm text-ink-soft">
+            Di tempat sampah asli, poin ini muncul di aplikasimu dan hangus bila tidak diklaim dalam {expiryMinutes} menit.
+          </p>
+        </div>
+      </div>
+    </section>
   );
 }

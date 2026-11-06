@@ -22,23 +22,42 @@ export type PointTier = {
 
 export type PointsSettings = {
   tiers: PointTier[];
+  /** Poin dari sensor hangus bila tidak diklaim dalam waktu ini. */
   depositExpiryMinutes: number;
+  /** Sambungan akun ke tempat sampah dilepas otomatis setelah waktu ini. */
+  sessionExpiryMinutes: number;
 };
 
-export type ActiveDeposit = {
-  code: string;
+/** Pengguna yang sedang tersambung ke sensor sebuah tempat sampah (hasil scan QR statis). */
+export type ActiveSession = {
+  userId: string;
+  userName: string;
+  startedAt: Timestamp;
+  expiresAt: Timestamp;
+};
+
+/** Ringkasan setoran yang menunggu klaim, disalin ke dokumen bin supaya layar tempat sampah bisa menampilkannya tanpa login. */
+export type PendingDepositInfo = {
+  depositId: string;
+  userName: string;
   bottleCount: number;
   points: number;
   expiresAt: Timestamp;
 };
 
+/** Dokumen bins/{sampahId}. ID dokumen adalah sampahId yang tercetak di QR tempat sampah. */
 export type Bin = {
+  sampahId: string;
   name: string;
   location: string;
   capacityBottles: number;
   bottleCount: number;
   totalBottles: number;
-  currentDeposit: ActiveDeposit | null;
+  /** Total poin yang pernah dibaca dan diterbitkan sensor tempat sampah ini. */
+  pointsIssued: number;
+  activeSession: ActiveSession | null;
+  pendingDeposit: PendingDepositInfo | null;
+  lastReadingAt: Timestamp | null;
   lastEmptiedAt: Timestamp | null;
   createdAt: Timestamp | null;
 };
@@ -50,11 +69,12 @@ export type BottleReading = { heightCm: number; tier: string; points: number };
 export type Deposit = {
   binId: string;
   binName: string;
+  userId: string;
+  userName: string;
   bottleCount: number;
   bottles: BottleReading[];
   points: number;
   status: DepositStatus;
-  claimedBy: string | null;
   claimedAt: Timestamp | null;
   createdAt: Timestamp | null;
   expiresAt: Timestamp;
@@ -87,7 +107,7 @@ export type Redemption = {
   updatedAt: Timestamp | null;
 };
 
-export type LedgerType = "setor" | "tukar" | "refund";
+export type LedgerType = "setor" | "tukar" | "refund" | "bonus";
 
 export type LedgerEntry = {
   type: LedgerType;

@@ -44,7 +44,6 @@ export function AdminShell({ children }: { children: ReactNode }) {
   if (!isAdmin) return <NotAdmin uid={user.uid} />;
 
   const isActive = (href: string) => (href === "/admin" ? pathname === href : pathname.startsWith(href));
-  const current = sections.find((s) => isActive(s.href));
 
   const nav = (onNavigate?: () => void) => (
     <nav aria-label="Menu admin" className="grid gap-1">
@@ -87,10 +86,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
       </aside>
 
       <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b-2 border-dashed border-stitch bg-paper px-4 py-1 lg:hidden">
-        <div className="min-w-0">
-          <p className="text-xs font-bold text-ink-soft">Panel admin</p>
-          <p className="truncate font-display text-2xl font-black leading-none">{current?.label ?? "Admin"}</p>
-        </div>
+        <p className="font-display text-2xl font-black leading-none">Panel admin</p>
         <Button variant="ghost" size="sm" onClick={() => setMenuOpen(true)}>
           <Icon name="menu" size={20} />
           Menu
