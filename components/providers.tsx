@@ -4,6 +4,7 @@ import { useSyncExternalStore, type ReactNode } from "react";
 import { AnimatePresence, MotionConfig, motion } from "framer-motion";
 import { create } from "zustand";
 import { AuthProvider } from "@/lib/auth-context";
+import { firebaseConfigured } from "@/lib/firebase";
 import { Icon } from "./icons";
 import { cn } from "./ui";
 
@@ -72,13 +73,46 @@ function ToastHost() {
   );
 }
 
+const requiredEnv = [
+  "NEXT_PUBLIC_FIREBASE_API_KEY",
+  "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN",
+  "NEXT_PUBLIC_FIREBASE_PROJECT_ID",
+  "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET",
+  "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID",
+  "NEXT_PUBLIC_FIREBASE_APP_ID",
+];
+
+function ConfigMissing() {
+  return (
+    <main className="mx-auto grid min-h-dvh max-w-xl content-center gap-4 px-4 py-10">
+      <div role="alert" className="patch p-6">
+        <h1 className="text-4xl">Konfigurasi Firebase belum diisi</h1>
+        <p className="mt-3 text-ink-soft">
+          Aplikasi belum tahu project Firebase mana yang dipakai. Isi variabel berikut di <code className="font-mono">.env.local</code>{" "}
+          (lokal) atau di Environment Variables hosting, lalu build ulang. Nilainya ada di{" "}
+          <code className="font-mono">firebase apps:sdkconfig web</code>.
+        </p>
+        <ul className="mt-4 grid gap-1 font-mono text-sm">
+          {requiredEnv.map((name) => (
+            <li key={name}>{name}</li>
+          ))}
+        </ul>
+      </div>
+    </main>
+  );
+}
+
 export function Providers({ children }: { children: ReactNode }) {
   return (
     <MotionConfig reducedMotion="user">
-      <AuthProvider>
-        {children}
-        <ToastHost />
-      </AuthProvider>
+      {firebaseConfigured ? (
+        <AuthProvider>
+          {children}
+          <ToastHost />
+        </AuthProvider>
+      ) : (
+        <ConfigMissing />
+      )}
     </MotionConfig>
   );
 }
