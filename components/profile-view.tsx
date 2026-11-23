@@ -9,7 +9,7 @@ import { Icon } from "./icons";
 import { toast, useTheme } from "./providers";
 import { Button, Field, LinkButton, PageTitle, Switch } from "./ui";
 
-export function ProfileView() {
+export function ProfileView({ embedded = false }: { embedded?: boolean }) {
   const router = useRouter();
   const { profile, user, isAdmin, logOut } = useAuth();
   const { theme, setTheme } = useTheme();
@@ -45,8 +45,8 @@ export function ProfileView() {
   }
 
   return (
-    <div className="mx-auto grid max-w-xl gap-6">
-      <PageTitle title="Profil" className="mb-0" />
+    <div className={embedded ? "grid max-w-2xl gap-6" : "mx-auto grid max-w-xl gap-6"}>
+      <PageTitle as={embedded ? "h2" : "h1"} title="Profil" className="mb-0" />
 
       <dl className="grid grid-cols-2 gap-3">
         <div className="patch patch-denim px-5 py-4">

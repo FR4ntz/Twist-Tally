@@ -12,7 +12,7 @@ import { Chip, EmptyState, ErrorState, LinkButton, LoadingBlock, PageTitle, Poin
 
 type Tab = "poin" | "setoran" | "voucher";
 
-export function HistoryView() {
+export function HistoryView({ embedded = false }: { embedded?: boolean }) {
   const { profile } = useAuth();
   const uid = profile?.id ?? null;
   const [tab, setTab] = useState<Tab>("poin");
@@ -32,7 +32,7 @@ export function HistoryView() {
 
   return (
     <div>
-      <PageTitle title="Riwayat" />
+      <PageTitle as={embedded ? "h2" : "h1"} title="Riwayat" />
       <Tabs
         label="Jenis riwayat"
         value={tab}

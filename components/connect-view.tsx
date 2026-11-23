@@ -4,21 +4,36 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ActionError, connectToBin, disconnectFromBin, liveSession } from "@/lib/actions";
+import {
+  ActionError,
+  connectToBin,
+  disconnectFromBin,
+  liveSession,
+  requestSizeDetection,
+} from "@/lib/actions";
 import { useAuth } from "@/lib/auth-context";
 import { extractSampahId, fillPercent } from "@/lib/format";
 import { useDoc, useNow } from "@/lib/hooks";
-import { withDefaults } from "@/lib/points";
+import { readBottle, sortTiers, withDefaults } from "@/lib/points";
 import type { Bin, PointsSettings } from "@/lib/types";
 import { BinArt } from "./bin-art";
 import { ClaimCard, useMyDeposits } from "./claims";
 import { Countdown } from "./countdown";
 import { Icon } from "./icons";
 import { toast } from "./providers";
-import { Button, Chip, ErrorState, FillGauge, LinkButton, LoadingBlock, PageTitle } from "./ui";
+import { Button, Chip, ErrorState, FillGauge, LinkButton, LoadingBlock, PageTitle, Points } from "./ui";
+
+const LIVE_SENSOR_TTL_MS = 15_000;
 
 export function ConnectView() {
-  const sampahId = extractSampahId(useSearchParams().get("sampah") ?? "");
+  const searchParams = useSearchParams();
+  const sampahId = extractSampahId(searchParams.get("sampah") ?? "");
+  const initialTinggiRaw = Number(searchParams.get("tinggi") ?? "");
+  const initialTinggi =
+    Number.isFinite(initialTinggiRaw) && initialTinggiRaw >= 5 && initialTinggiRaw <= 60
+      ? Math.round(initialTinggiRaw * 10) / 10
+      : null;
+
   const { profile, user } = useAuth();
   const bin = useDoc<Bin>(sampahId ? `bins/${sampahId}` : null);
   const settingsDoc = useDoc<PointsSettings>("settings/points");
@@ -57,10 +72,19 @@ export function ConnectView() {
 
   const data = bin.data;
   const settings = withDefaults(settingsDoc.data);
+  const tiers = sortTiers(settings.tiers);
   const session = liveSession(data, now);
   const mine = session?.userId === user?.uid;
   const taken = session !== null && !mine;
   const percent = fillPercent(data.bottleCount, data.capacityBottles);
+
+  const liveSensorFresh =
+    data.liveSensor && data.liveSensor.updatedAt && now - data.liveSensor.updatedAt.toMillis() <= LIVE_SENSOR_TTL_MS
+      ? data.liveSensor
+      : null;
+
+  const scannedReading = initialTinggi !== null ? readBottle(initialTinggi, tiers) : null;
+
   const myPending = (deposits.data ?? [])
     .filter((d) => d.binId === data.sampahId && d.status === "pending" && d.expiresAt.toMillis() > now)
     .sort((a, b) => a.expiresAt.toMillis() - b.expiresAt.toMillis());
@@ -70,7 +94,13 @@ export function ConnectView() {
     setBusy(true);
     try {
       await connectToBin(data.sampahId, profile, settings.sessionExpiryMinutes);
-      toast.ok(`Akunmu tersambung ke ${data.name}. Masukkan botolmu.`);
+      if (initialTinggi !== null) {
+        await requestSizeDetection(data.sampahId, profile, settings.sessionExpiryMinutes, initialTinggi);
+        const reading = readBottle(initialTinggi, tiers);
+        toast.ok(`Tersambung ke ${data.name} dengan tinggi ${initialTinggi.toFixed(1)} cm (${reading.tier}).`);
+      } else {
+        toast.ok(`Akunmu tersambung ke ${data.name}. Taruh botol di alas!`);
+      }
     } catch (error) {
       toast.error(error instanceof ActionError ? error.message : "Gagal menyambung. Coba lagi sebentar lagi.");
     } finally {
@@ -112,6 +142,18 @@ export function ConnectView() {
         </div>
       </div>
 
+      {scannedReading && initialTinggi !== null && (
+        <div className="patch patch-linen flex flex-wrap items-center justify-between gap-3 border-2 border-fill p-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider text-denim">Hasil deteksi dari QR</p>
+            <p className="font-display text-2xl font-black leading-tight">
+              {initialTinggi.toFixed(1)} cm · {scannedReading.tier}
+            </p>
+          </div>
+          <Points value={scannedReading.points} size={20} className="text-xl" />
+        </div>
+      )}
+
       <AnimatePresence mode="wait">
         {mine && session ? (
           <motion.section
@@ -120,34 +162,47 @@ export function ConnectView() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
             aria-labelledby="sesi"
-            className="patch patch-denim grid gap-4 p-6"
+            className="grid gap-4"
           >
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div className="min-w-[12rem] flex-1">
-                <h2 id="sesi" className="text-3xl sm:text-4xl">
-                  Terhubung, masukkan botolmu
-                </h2>
-                <p className="mt-2 text-on-fill/90">
-                  Masukkan botol satu per satu. Sensor membaca tinggi dan jumlahnya atas nama {session.userName}, lalu
-                  poinnya muncul di sini.
-                </p>
+            <div className="patch patch-denim grid gap-3 p-5 sm:p-6">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="min-w-[12rem] flex-1">
+                  <h2 id="sesi" className="text-3xl sm:text-4xl">
+                    Tersambung ke {data.sampahId}
+                  </h2>
+                  <p className="mt-1.5 text-on-fill/90">
+                    Taruh botol di atas alas tempat sampah. Sensor membaca tinggi botol atas nama {session.userName}, lalu
+                    poinnya muncul di sini untuk kamu klaim.
+                  </p>
+                </div>
+                <div className="rounded-full bg-card p-0.5 text-ink">
+                  <Countdown
+                    expiresAt={session.expiresAt}
+                    totalMs={settings.sessionExpiryMinutes * 60_000}
+                    size={60}
+                    label="Sisa waktu sambungan"
+                  />
+                </div>
               </div>
-              <div className="rounded-full bg-card p-0.5 text-ink">
-                <Countdown
-                  expiresAt={session.expiresAt}
-                  totalMs={settings.sessionExpiryMinutes * 60_000}
-                  size={60}
-                  label="Sisa waktu sambungan"
-                />
+              <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-on-fill/85">
+                <span>Batas klaim poin: {settings.depositExpiryMinutes} menit setelah sensor mencatat.</span>
+                <Button variant="ghost" loading={busy} onClick={disconnect} size="sm" className="border-on-fill/40 text-on-fill hover:bg-on-fill/15">
+                  Putuskan sambungan
+                </Button>
               </div>
             </div>
-            <p className="text-sm text-on-fill/85">
-              Setelah poin masuk, kamu punya {settings.depositExpiryMinutes} menit untuk mengklaimnya. Lewat dari itu poin
-              hangus.
-            </p>
-            <Button variant="thread" loading={busy} onClick={disconnect} className="w-fit" size="sm">
-              Putuskan sambungan
-            </Button>
+
+            {liveSensorFresh && liveSensorFresh.heightCm >= 5 && (
+              <div className="patch patch-linen flex flex-wrap items-center justify-between gap-3 border-2 border-thread p-4">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-ink-soft">Sensor alas mendeteksi botol</p>
+                  <p className="font-display text-2xl font-black leading-tight">
+                    {liveSensorFresh.heightCm.toFixed(1)} cm · {liveSensorFresh.tier}
+                  </p>
+                </div>
+                <Points value={liveSensorFresh.points} size={20} className="text-xl" />
+              </div>
+            )}
           </motion.section>
         ) : taken && session ? (
           <motion.section
@@ -187,7 +242,9 @@ export function ConnectView() {
               </li>
             </ol>
             <Button variant="thread" loading={busy} onClick={connect} className="mt-5 min-h-14 w-full text-lg">
-              Hubungkan ke {data.name}
+              {initialTinggi !== null
+                ? `Hubungkan ke ${data.name} & Klaim ${initialTinggi.toFixed(1)} cm`
+                : `Hubungkan ke ${data.name}`}
             </Button>
           </motion.section>
         )}
@@ -204,9 +261,14 @@ export function ConnectView() {
         </section>
       )}
 
-      <Link href="/beranda" className="inline-flex min-h-11 w-fit items-center font-bold underline underline-offset-4">
-        Kembali ke beranda
-      </Link>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Link href="/dashboard" className="inline-flex min-h-11 items-center font-bold underline underline-offset-4">
+          Kembali ke dashboard
+        </Link>
+        <Link href="/tukar" className="inline-flex min-h-11 items-center font-bold text-denim underline underline-offset-4">
+          Tukar poin ke hadiah
+        </Link>
+      </div>
     </div>
   );
 }

@@ -28,12 +28,30 @@ export type PointsSettings = {
   sessionExpiryMinutes: number;
 };
 
+/** Permintaan deteksi ukuran dari halaman pengguna yang tersambung ke tempat sampah. */
+export type DetectRequest = {
+  id: string;
+  heightCm: number | null;
+  requestedAt: Timestamp;
+};
+
 /** Pengguna yang sedang tersambung ke sensor sebuah tempat sampah (hasil scan QR statis). */
 export type ActiveSession = {
   userId: string;
   userName: string;
   startedAt: Timestamp;
   expiresAt: Timestamp;
+  detectRequest?: DetectRequest | null;
+};
+
+/** Pembacaan langsung dari sensor ultrasonik di alas tempat sampah. */
+export type LiveSensorReading = {
+  heightCm: number;
+  distanceCm: number | null;
+  tier: string;
+  points: number;
+  source: "arduino" | "simulator";
+  updatedAt: Timestamp;
 };
 
 /** Ringkasan setoran yang menunggu klaim, disalin ke dokumen bin supaya layar tempat sampah bisa menampilkannya tanpa login. */
@@ -57,6 +75,7 @@ export type Bin = {
   pointsIssued: number;
   activeSession: ActiveSession | null;
   pendingDeposit: PendingDepositInfo | null;
+  liveSensor?: LiveSensorReading | null;
   lastReadingAt: Timestamp | null;
   lastEmptiedAt: Timestamp | null;
   createdAt: Timestamp | null;

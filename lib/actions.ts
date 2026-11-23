@@ -18,6 +18,7 @@ import type {
   Bin,
   BottleReading,
   Deposit,
+  LiveSensorReading,
   PointsSettings,
   Redemption,
   RedemptionStatus,
@@ -31,6 +32,11 @@ export class ActionError extends Error {}
 /** Sesi dianggap aktif selama waktu kedaluwarsanya belum lewat. */
 export function liveSession(bin: Pick<Bin, "activeSession">, now = Date.now()) {
   return bin.activeSession && bin.activeSession.expiresAt.toMillis() > now ? bin.activeSession : null;
+}
+
+function sessionExpiresAt(sessionMinutes: number) {
+  const clampedMs = Math.min(Math.max(1, sessionMinutes) * 60_000, 59 * 60_000);
+  return Timestamp.fromMillis(Date.now() + clampedMs);
 }
 
 /** Scan QR statis tempat sampah: menyambungkan userId ke sensor sampahId. */
@@ -48,14 +54,58 @@ export async function connectToBin(sampahId: string, user: Pick<WithId<UserDoc>,
         userId: user.id,
         userName: user.name,
         startedAt: serverTimestamp(),
-        expiresAt: Timestamp.fromMillis(Date.now() + sessionMinutes * 60_000),
+        expiresAt: sessionExpiresAt(sessionMinutes),
+        detectRequest: null,
       },
     });
   });
 }
 
+/** Mengirim permintaan deteksi ukuran botol di alas dari perangkat pengguna yang tersambung. */
+export async function requestSizeDetection(
+  sampahId: string,
+  user: Pick<WithId<UserDoc>, "id" | "name">,
+  sessionMinutes: number,
+  heightCm: number | null,
+) {
+  const binRef = doc(db, "bins", sampahId);
+  const requestId = newDepositCode().slice(0, 6);
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(binRef);
+    if (!snap.exists()) throw new ActionError("Tempat sampah tidak ditemukan.");
+    const session = liveSession(snap.data() as Bin);
+    if (session && session.userId !== user.id) {
+      throw new ActionError(`Tempat sampah sedang dipakai ${session.userName}.`);
+    }
+    tx.update(binRef, {
+      activeSession: {
+        userId: user.id,
+        userName: user.name,
+        startedAt: serverTimestamp(),
+        expiresAt: sessionExpiresAt(sessionMinutes),
+        detectRequest: {
+          id: requestId,
+          heightCm,
+          requestedAt: Timestamp.now(),
+        },
+      },
+    });
+  });
+  return requestId;
+}
+
 export async function disconnectFromBin(sampahId: string) {
   await updateDoc(doc(db, "bins", sampahId), { activeSession: null });
+}
+
+/** Menyiarkan pembacaan sensor ultrasonik di alas ke layar tempat sampah dan ponsel pengguna. */
+export async function publishLiveSensor(
+  sampahId: string,
+  sensor: Omit<LiveSensorReading, "updatedAt"> | null,
+) {
+  await updateDoc(doc(db, "bins", sampahId), {
+    liveSensor: sensor ? { ...sensor, updatedAt: Timestamp.now() } : null,
+  });
 }
 
 export async function claimDeposit(uid: string, depositId: string): Promise<{ points: number; bottles: number }> {
@@ -228,6 +278,7 @@ export async function createDeposit(
   bin: WithId<Bin>,
   heightsCm: number[],
   settings: PointsSettings,
+  options?: { keepSession?: boolean },
 ): Promise<{ depositId: string; userName: string; bottles: BottleReading[]; points: number }> {
   const session = liveSession(bin);
   if (!session) throw new ActionError("Belum ada pengguna yang tersambung ke tempat sampah ini.");
@@ -255,7 +306,11 @@ export async function createDeposit(
     bottleCount: increment(bottles.length),
     totalBottles: increment(bottles.length),
     pointsIssued: increment(points),
-    activeSession: null,
+    ...(options?.keepSession
+      ? {
+          "activeSession.detectRequest": null,
+        }
+      : { activeSession: null }),
     pendingDeposit: { depositId, userName: session.userName, bottleCount: bottles.length, points, expiresAt },
     lastReadingAt: serverTimestamp(),
   });

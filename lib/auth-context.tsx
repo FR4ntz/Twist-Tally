@@ -2,9 +2,11 @@
 
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
+  GoogleAuthProvider,
   createUserWithEmailAndPassword,
   onAuthStateChanged,
   signInWithEmailAndPassword,
+  signInWithPopup,
   signOut,
   updateProfile,
   type User,
@@ -21,6 +23,7 @@ type AuthState = {
   /** true selama status login atau profil belum diketahui */
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   logOut: () => Promise<void>;
 };
@@ -30,8 +33,9 @@ const AuthContext = createContext<AuthState | null>(null);
 let registrationInFlight = false;
 
 async function createProfile(user: User, name: string) {
+  const cleanName = name.trim().slice(0, 60) || "Pengguna";
   await setDoc(doc(db, "users", user.uid), {
-    name,
+    name: cleanName,
     email: user.email ?? "",
     points: 0,
     lifetimePoints: 0,
@@ -67,6 +71,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       signIn: async (email, password) => {
         await signInWithEmailAndPassword(auth, email, password);
+      },
+      signInWithGoogle: async () => {
+        const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: "select_account" });
+        await signInWithPopup(auth, provider);
       },
       register: async (name, email, password) => {
         registrationInFlight = true;
@@ -108,6 +117,15 @@ export function authErrorMessage(error: unknown): string {
       return "Terlalu banyak percobaan. Tunggu beberapa menit, lalu coba lagi.";
     case "auth/network-request-failed":
       return "Koneksi internet terputus. Cek jaringan, lalu coba lagi.";
+    case "auth/popup-closed-by-user":
+    case "auth/cancelled-popup-request":
+      return "Login Google dibatalkan. Silakan coba lagi.";
+    case "auth/popup-blocked":
+      return "Jendela login Google diblokir browser. Izinkan pop-up untuk situs ini, lalu coba lagi.";
+    case "auth/account-exists-with-different-credential":
+      return "Email ini sudah terdaftar dengan metode masuk lain. Gunakan email dan kata sandi.";
+    case "auth/operation-not-allowed":
+      return "Login Google belum diaktifkan di Firebase Authentication project ini.";
     default:
       return "Gagal memproses akun. Coba lagi sebentar lagi.";
   }

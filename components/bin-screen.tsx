@@ -2,29 +2,19 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useSyncExternalStore } from "react";
+import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { QRCodeSVG } from "qrcode.react";
 import { liveSession } from "@/lib/actions";
 import { extractSampahId, fillPercent } from "@/lib/format";
-import { useCollection, useDoc, useNow } from "@/lib/hooks";
+import { useCollection, useDoc, useNow, useOrigin } from "@/lib/hooks";
 import { withDefaults } from "@/lib/points";
 import type { Bin, PointsSettings } from "@/lib/types";
 import { BinArt } from "./bin-art";
 import { Countdown } from "./countdown";
 import { Icon } from "./icons";
 import { Logo } from "./logo";
-import { EmptyState, ErrorState, FillGauge, LoadingBlock, Points } from "./ui";
-
-const subscribeOrigin = () => () => {};
-
-function useOrigin() {
-  return useSyncExternalStore(
-    subscribeOrigin,
-    () => window.location.origin,
-    () => "",
-  );
-}
+import { Button, EmptyState, ErrorState, FillGauge, LoadingBlock, Points } from "./ui";
 
 export function BinScreen() {
   const raw = useSearchParams().get("id");
@@ -74,6 +64,7 @@ function Screen({ id }: { id: string }) {
   const settingsDoc = useDoc<PointsSettings>("settings/points");
   const origin = useOrigin();
   const now = useNow(500);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   if (bin.loading) {
     return (
@@ -100,18 +91,43 @@ function Screen({ id }: { id: string }) {
   const settings = withDefaults(settingsDoc.data);
   const session = liveSession(data, now);
   const pending = data.pendingDeposit && data.pendingDeposit.expiresAt.toMillis() > now ? data.pendingDeposit : null;
+  const liveAlas =
+    data.liveSensor && data.liveSensor.updatedAt && now - data.liveSensor.updatedAt.toMillis() <= 15_000 && data.liveSensor.heightCm >= 5
+      ? data.liveSensor
+      : null;
   const percent = fillPercent(data.bottleCount, data.capacityBottles);
+
+  async function toggleFullscreen() {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+        setIsFullscreen(true);
+      } else {
+        await document.exitFullscreen();
+        setIsFullscreen(false);
+      }
+    } catch {
+      // Browser tidak mengizinkan fullscreen
+    }
+  }
 
   return (
     <main className="mx-auto grid min-h-dvh max-w-4xl content-between gap-6 px-4 py-6 sm:px-6">
-      <header className="flex items-start justify-between gap-4">
+      <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <Logo />
           <p className="mt-1 text-sm text-ink-soft">
             {data.name}, {data.location}
           </p>
         </div>
-        <p className="whitespace-nowrap rounded-[10px] bg-paper-deep px-3 py-1.5 font-mono text-base font-bold tracking-wider sm:text-lg">{data.sampahId}</p>
+        <div className="flex items-center gap-2">
+          <p className="whitespace-nowrap rounded-[10px] bg-paper-deep px-3 py-1.5 font-mono text-base font-bold tracking-wider sm:text-lg">
+            {data.sampahId}
+          </p>
+          <Button variant="ghost" size="sm" onClick={toggleFullscreen}>
+            {isFullscreen ? "Keluar layar penuh" : "Layar penuh"}
+          </Button>
+        </div>
       </header>
 
       <div className="grid items-stretch gap-5 md:grid-cols-[auto_1fr]">
@@ -123,7 +139,7 @@ function Screen({ id }: { id: string }) {
             <QRCodeSVG value={`${origin}/hubung?sampah=${data.sampahId}`} size={200} level="M" title={`QR tempat sampah ${data.sampahId}`} />
           </div>
           <p className="max-w-[14rem] text-sm text-ink-soft">
-            Buka menu Scan di aplikasi Twist &amp; Tally. Atau ketik ID {data.sampahId}.
+            Buka menu Scan di aplikasi Twist &amp; Tally untuk memindai QR ini.
           </p>
         </section>
 
@@ -139,7 +155,9 @@ function Screen({ id }: { id: string }) {
               >
                 <div className="min-w-[12rem] flex-1">
                   <h2 className="text-3xl sm:text-4xl md:text-5xl">Terhubung dengan {session.userName}</h2>
-                  <p className="mt-2 text-lg text-on-fill/90">Masukkan botol satu per satu. Sensor sedang membaca.</p>
+                  <p className="mt-2 text-lg text-on-fill/90">
+                    Taruh botol di atas alas. Sensor sedang membaca tinggi botolmu.
+                  </p>
                 </div>
                 <div className="rounded-full bg-card p-0.5 text-ink">
                   <Countdown expiresAt={session.expiresAt} totalMs={settings.sessionExpiryMinutes * 60_000} size={64} label="Sisa waktu sambungan" />
@@ -173,13 +191,38 @@ function Screen({ id }: { id: string }) {
                 exit={{ opacity: 0 }}
                 className="patch p-6"
               >
-                <span className="text-fill">
+                <span className="inline-block text-fill">
                   <Icon name="bottle" size={44} />
                 </span>
                 <h2 className="mt-2 text-3xl sm:text-4xl md:text-5xl">Siap menerima botol</h2>
                 <p className="mt-2 max-w-md text-lg text-ink-soft">
-                  Scan QR di samping dulu supaya poin dari botolmu tercatat atas namamu.
+                  Scan QR di samping dulu supaya poin dari botol di alas tercatat atas namamu.
                 </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence>
+            {liveAlas && (
+              <motion.div
+                key="live-alas"
+                initial={{ opacity: 0, scale: 0.96, y: 8 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.96 }}
+                className="patch patch-linen flex flex-wrap items-center justify-between gap-3 border-2 border-thread px-5 py-3.5"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="grid size-10 place-items-center rounded-full bg-thread text-thread-ink">
+                    <Icon name="scan" size={20} />
+                  </span>
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wider text-ink-soft">Sensor alas mendeteksi botol</p>
+                    <p className="font-display text-2xl font-black leading-tight">
+                      {liveAlas.heightCm.toFixed(1)} cm · {liveAlas.tier}
+                    </p>
+                  </div>
+                </div>
+                <Points value={liveAlas.points} size={22} className="text-2xl" />
               </motion.div>
             )}
           </AnimatePresence>

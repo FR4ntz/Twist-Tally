@@ -11,10 +11,18 @@ import { Logo } from "./logo";
 import { LoadingBlock, Points, cn } from "./ui";
 
 const items: { href: string; label: string; icon: IconName }[] = [
-  { href: "/beranda", label: "Beranda", icon: "home" },
+  { href: "/dashboard", label: "Dashboard", icon: "home" },
   { href: "/tukar", label: "Tukar", icon: "tag" },
   { href: "/riwayat", label: "Riwayat", icon: "receipt" },
   { href: "/profil", label: "Profil", icon: "user" },
+];
+
+const navLinks: { href: string; label: string }[] = [
+  { href: "/dashboard", label: "Dashboard" },
+  { href: "/scan", label: "Scan QR" },
+  { href: "/tukar", label: "Tukar" },
+  { href: "/riwayat", label: "Riwayat" },
+  { href: "/profil", label: "Profil" },
 ];
 
 export function useRequireUser() {
@@ -43,80 +51,88 @@ export function AppShell({ children }: { children: ReactNode }) {
     );
   }
 
-  const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`));
+  const onDashboard = isActive("/dashboard");
+  const visibleLinks = onDashboard ? navLinks.filter((l) => l.href !== "/dashboard") : navLinks;
 
   return (
-    <div className="min-h-dvh lg:pl-64">
-      <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col gap-6 border-r-2 border-dashed border-stitch bg-paper p-5 lg:flex">
-        <Logo href="/" />
-        <nav aria-label="Menu utama" className="grid gap-1">
-          {items.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              aria-current={isActive(item.href) ? "page" : undefined}
-              className={cn(
-                "relative flex min-h-12 items-center gap-3 rounded-[12px] px-3 font-bold transition-colors",
-                isActive(item.href) ? "text-paper" : "text-ink hover:bg-paper-deep",
-              )}
-            >
-              {isActive(item.href) && (
-                <motion.span layoutId="rail-pill" className="absolute inset-0 rounded-[12px] bg-ink" transition={{ type: "spring", stiffness: 380, damping: 32 }} />
-              )}
-              <span className="relative flex items-center gap-3">
-                <Icon name={item.icon} size={22} />
-                {item.label}
-              </span>
-            </Link>
-          ))}
-        </nav>
-        <Link
-          href="/scan"
-          className="mt-2 flex min-h-12 items-center justify-center gap-2 rounded-[12px] bg-thread px-4 font-bold text-thread-ink hover:brightness-105"
-        >
-          <Icon name="scan" size={22} />
-          Scan QR tempat sampah
-        </Link>
-        <div className="mt-auto">
-          <p className="text-sm text-ink-soft">Saldo poin</p>
-          <Points value={profile.points} size={22} className="text-2xl" />
-        </div>
-      </aside>
+    <div className="min-h-dvh">
+      <header className="sticky top-0 z-40 border-b-2 border-dashed border-stitch/60 bg-paper/90 backdrop-blur-md">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-1.5 sm:px-6">
+          <Logo href="/" />
 
-      <header className="sticky top-0 z-30 flex items-center justify-between bg-paper px-4 py-1 lg:hidden">
-        <Logo href="/" />
-        <Link
-          href="/riwayat"
-          aria-label={`Saldo ${profile.points} poin, buka riwayat`}
-          className="flex min-h-11 items-center rounded-[10px] bg-paper-deep px-3"
-        >
-          <Points value={profile.points} />
-        </Link>
-        <span aria-hidden="true" className="gingham absolute inset-x-0 -bottom-[2px] h-[6px]" />
+          <div className="flex items-center gap-2 sm:gap-3">
+            <nav aria-label="Menu utama" className="hidden items-center gap-1 md:flex">
+              {visibleLinks.map((item) => {
+                const active = isActive(item.href) || (item.href === "/scan" && isActive("/hubung"));
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    aria-current={active ? "page" : undefined}
+                    className={cn(
+                      "relative flex min-h-11 items-center whitespace-nowrap rounded-[10px] px-3 text-sm font-bold transition-colors",
+                      active ? "text-paper" : "text-ink-soft hover:bg-paper-deep hover:text-ink",
+                    )}
+                  >
+                    {active && (
+                      <motion.span
+                        layoutId="top-nav-pill"
+                        transition={{ type: "spring", stiffness: 380, damping: 32 }}
+                        className="absolute inset-0 rounded-[10px] bg-ink"
+                      />
+                    )}
+                    <span className="relative">{item.label}</span>
+                  </Link>
+                );
+              })}
+            </nav>
+
+            <Link
+              href="/riwayat"
+              aria-label={`Saldo ${profile.points} poin, buka riwayat`}
+              className="flex min-h-11 items-center rounded-[10px] border-2 border-edge/50 bg-card px-3 transition hover:-translate-y-0.5 hover:border-ink"
+            >
+              <Points value={profile.points} />
+            </Link>
+
+            <Link
+              href="/"
+              className="inline-flex min-h-11 items-center gap-1.5 whitespace-nowrap rounded-[10px] border-2 border-ink bg-thread px-3.5 text-sm font-bold text-thread-ink shadow-[0_2px_0_var(--ink)] transition-all duration-200 hover:-translate-y-0.5 hover:brightness-105 active:translate-y-px"
+            >
+              <Icon name="home" size={16} />
+              Utama
+            </Link>
+          </div>
+        </div>
       </header>
 
-      <main className="mx-auto w-full max-w-3xl px-4 pb-[calc(9rem+var(--claim-banner-h,0px))] pt-5 sm:px-6 lg:pb-[calc(3rem+var(--claim-banner-h,0px))] lg:pt-8">{children}</main>
+      <main className="mx-auto w-full max-w-5xl px-4 pb-[calc(8.5rem+var(--claim-banner-h,0px))] pt-6 sm:px-6 md:pb-[calc(3rem+var(--claim-banner-h,0px))] md:pt-8">
+        {children}
+      </main>
 
       <ClaimBanner />
       <CelebrationOverlay />
 
       <nav
-        aria-label="Menu utama"
-        className="pb-safe fixed inset-x-0 bottom-0 z-40 border-t-2 border-dashed border-stitch bg-paper lg:hidden"
+        aria-label="Menu utama ponsel"
+        className="pb-safe fixed inset-x-0 bottom-0 z-40 border-t-2 border-dashed border-stitch bg-paper md:hidden"
       >
         <ul className="mx-auto grid max-w-lg grid-cols-5 items-end">
           {items.slice(0, 2).map((item) => (
             <NavSlot key={item.href} item={item} active={isActive(item.href)} />
           ))}
           <li className="flex justify-center">
-            <Link
-              href="/scan"
-              aria-label="Scan QR tempat sampah"
-              aria-current={isActive("/scan") || isActive("/hubung") ? "page" : undefined}
-              className="-mt-7 grid size-16 place-items-center rounded-full bg-ink text-paper outline-2 outline-offset-4 outline-dashed outline-thread"
-            >
-              <Icon name="scan" size={30} />
-            </Link>
+            <motion.div whileHover={{ scale: 1.06, y: -2 }} whileTap={{ scale: 0.94 }}>
+              <Link
+                href="/scan"
+                aria-label="Scan QR tempat sampah"
+                aria-current={isActive("/scan") || isActive("/hubung") ? "page" : undefined}
+                className="-mt-7 grid size-16 place-items-center rounded-full bg-ink text-paper shadow-[0_6px_16px_rgb(29_33_88/0.28)] outline-2 outline-offset-4 outline-dashed outline-thread transition-colors"
+              >
+                <Icon name="scan" size={30} />
+              </Link>
+            </motion.div>
           </li>
           {items.slice(2).map((item) => (
             <NavSlot key={item.href} item={item} active={isActive(item.href)} />

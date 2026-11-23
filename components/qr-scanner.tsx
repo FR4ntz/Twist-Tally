@@ -6,14 +6,15 @@ import jsQR from "jsqr";
 import { Icon } from "./icons";
 import { Button } from "./ui";
 
-type Status = "starting" | "scanning" | "denied" | "unavailable";
+type Status = "idle" | "starting" | "scanning" | "denied" | "unavailable";
 
 const SCAN_WIDTH = 480;
 const SCAN_INTERVAL_MS = 110;
 
-export function QrScanner({ onText }: { onText: (text: string) => void }) {
+export function QrScanner({ onText, autoStart = true }: { onText: (text: string) => void; autoStart?: boolean }) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [status, setStatus] = useState<Status>("starting");
+  const [active, setActive] = useState(autoStart);
+  const [status, setStatus] = useState<Status>(autoStart ? "starting" : "idle");
   const [attempt, setAttempt] = useState(0);
   const onTextRef = useRef(onText);
 
@@ -22,6 +23,7 @@ export function QrScanner({ onText }: { onText: (text: string) => void }) {
   }, [onText]);
 
   useEffect(() => {
+    if (!active) return;
     let stream: MediaStream | null = null;
     let frame = 0;
     let cancelled = false;
@@ -82,15 +84,21 @@ export function QrScanner({ onText }: { onText: (text: string) => void }) {
       cancelAnimationFrame(frame);
       stream?.getTracks().forEach((t) => t.stop());
     };
-  }, [attempt]);
+  }, [attempt, active]);
 
   const retry = useCallback(() => {
+    setActive(true);
     setStatus("starting");
     setAttempt((n) => n + 1);
   }, []);
 
+  const pause = useCallback(() => {
+    setActive(false);
+    setStatus("idle");
+  }, []);
+
   return (
-    <div className="patch patch-ink mx-auto w-full max-w-sm p-3">
+    <div className="patch patch-ink mx-auto grid w-full max-w-sm gap-2 p-3">
       <div className="relative aspect-square overflow-hidden rounded-[10px] bg-[#0d1024]">
         <video ref={videoRef} playsInline muted className="size-full object-cover" aria-label="Pratinjau kamera" />
 
@@ -109,6 +117,18 @@ export function QrScanner({ onText }: { onText: (text: string) => void }) {
 
         {status !== "scanning" && (
           <div className="absolute inset-0 grid place-items-center p-6 text-center text-on-fill">
+            {status === "idle" && (
+              <div className="grid justify-items-center gap-3">
+                <Icon name="camera" size={38} />
+                <p className="font-bold">Kamera scanner QR</p>
+                <p className="text-sm text-on-fill/85">
+                  Tekan tombol di bawah untuk menyalakan kamera dan memindai QR tempat sampah.
+                </p>
+                <Button variant="thread" size="sm" onClick={retry}>
+                  Aktifkan kamera QR
+                </Button>
+              </div>
+            )}
             {status === "starting" && (
               <div role="status" className="grid gap-3">
                 <div className="loading-thread mx-auto w-32 text-on-fill/70" aria-hidden="true" />
@@ -142,6 +162,11 @@ export function QrScanner({ onText }: { onText: (text: string) => void }) {
           </div>
         )}
       </div>
+      {status === "scanning" && (
+        <Button variant="ghost" size="sm" onClick={pause} className="w-full border-on-fill/35 text-on-fill hover:bg-on-fill/15">
+          Jeda kamera
+        </Button>
+      )}
     </div>
   );
 }

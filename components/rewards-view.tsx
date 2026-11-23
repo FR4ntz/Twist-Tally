@@ -12,7 +12,7 @@ import { toast } from "./providers";
 import { VoucherSheet } from "./rows";
 import { Button, Chip, EmptyState, ErrorState, LinkButton, LoadingBlock, PageTitle, Points, Sheet, cn } from "./ui";
 
-export function RewardsView() {
+export function RewardsView({ embedded = false }: { embedded?: boolean }) {
   const { profile } = useAuth();
   const rewards = useCollection<Reward>({ path: "rewards", orderBy: ["pointsCost", "asc"], limit: 100 });
   const [category, setCategory] = useState<string>("Semua");
@@ -49,7 +49,9 @@ export function RewardsView() {
 
   return (
     <div>
-      <PageTitle title="Tukar poin">Pilih hadiah, tukar, lalu tunjukkan kode vouchernya ke admin.</PageTitle>
+      <PageTitle as={embedded ? "h2" : "h1"} title="Tukar poin">
+        Pilih hadiah, tukar, lalu tunjukkan kode vouchernya ke admin.
+      </PageTitle>
 
       <div className="mb-5 flex items-center justify-between gap-3 rounded-patch border-2 border-dashed border-stitch px-4 py-3">
         <span className="text-ink-soft">Saldomu</span>
@@ -68,20 +70,30 @@ export function RewardsView() {
         <>
           {categories.length > 2 && (
             <div className="mb-5 flex flex-wrap gap-2" role="group" aria-label="Filter kategori">
-              {categories.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  aria-pressed={category === c}
-                  onClick={() => setCategory(c)}
-                  className={cn(
-                    "min-h-11 rounded-[10px] border-2 px-4 text-sm font-bold",
-                    category === c ? "border-ink bg-ink text-paper" : "border-edge text-ink hover:bg-paper-deep",
-                  )}
-                >
-                  {c}
-                </button>
-              ))}
+              {categories.map((c) => {
+                const selectedCat = category === c;
+                return (
+                  <button
+                    key={c}
+                    type="button"
+                    aria-pressed={selectedCat}
+                    onClick={() => setCategory(c)}
+                    className={cn(
+                      "relative min-h-11 rounded-[10px] border-2 px-4 text-sm font-bold transition-colors",
+                      selectedCat ? "border-ink text-paper" : "border-edge text-ink hover:bg-paper-deep",
+                    )}
+                  >
+                    {selectedCat && (
+                      <motion.span
+                        layoutId="reward-cat-pill"
+                        transition={{ type: "spring", stiffness: 360, damping: 28 }}
+                        className="absolute inset-0 rounded-[8px] bg-ink"
+                      />
+                    )}
+                    <span className="relative">{c}</span>
+                  </button>
+                );
+              })}
             </div>
           )}
 

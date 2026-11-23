@@ -21,10 +21,14 @@ type Variant = "primary" | "thread" | "ghost" | "danger";
 type Size = "md" | "sm";
 
 const variants: Record<Variant, string> = {
-  primary: "bg-ink text-paper hover:brightness-125",
-  thread: "bg-thread text-thread-ink hover:brightness-105",
-  ghost: "border-2 border-edge bg-transparent text-ink hover:bg-paper-deep",
-  danger: "bg-danger text-paper hover:brightness-110",
+  primary:
+    "bg-ink text-paper shadow-[0_3px_0_var(--edge)] hover:-translate-y-0.5 hover:brightness-115 hover:shadow-[0_4px_0_var(--edge)] active:translate-y-[2px] active:shadow-[0_1px_0_var(--edge)]",
+  thread:
+    "bg-thread text-thread-ink shadow-[0_3px_0_var(--ink)] hover:-translate-y-0.5 hover:brightness-105 hover:shadow-[0_4px_0_var(--ink)] active:translate-y-[2px] active:shadow-[0_1px_0_var(--ink)]",
+  ghost:
+    "border-2 border-edge bg-card/60 text-ink hover:-translate-y-0.5 hover:border-ink hover:bg-paper-deep active:translate-y-0",
+  danger:
+    "bg-danger text-paper shadow-[0_3px_0_var(--ink)] hover:-translate-y-0.5 hover:brightness-110 active:translate-y-[2px]",
 };
 
 const sizes: Record<Size, string> = {
@@ -33,8 +37,9 @@ const sizes: Record<Size, string> = {
 };
 
 const buttonBase =
-  "inline-flex items-center justify-center gap-2 rounded-[12px] font-bold leading-tight transition duration-150 " +
-  "active:translate-y-px active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100 select-none";
+  "inline-flex items-center justify-center gap-2 rounded-[12px] font-bold leading-tight " +
+  "transition-all duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] " +
+  "disabled:opacity-50 disabled:translate-y-0 disabled:shadow-none select-none";
 
 export function Button({
   variant = "primary",
@@ -421,7 +426,7 @@ export function FillGauge({ percent, label }: { percent: number; label?: string 
           <span
             key={i}
             className={cn(
-              "h-4 flex-1 rounded-[3px]",
+              "h-4 flex-1 rounded-[3px] transition-colors duration-300",
               i < filled ? (warn ? "bg-thread" : "bg-fill") : "border-2 border-dashed border-stitch",
             )}
           />
@@ -432,10 +437,21 @@ export function FillGauge({ percent, label }: { percent: number; label?: string 
   );
 }
 
-export function PageTitle({ title, children, className = "mb-5" }: { title: string; children?: ReactNode; className?: string }) {
+export function PageTitle({
+  title,
+  children,
+  className = "mb-5",
+  as = "h1",
+}: {
+  title: string;
+  children?: ReactNode;
+  className?: string;
+  as?: "h1" | "h2";
+}) {
+  const Heading = as;
   return (
     <div className={className}>
-      <h1 className="text-4xl sm:text-5xl">{title}</h1>
+      <Heading className="text-4xl sm:text-5xl">{title}</Heading>
       {children && <p className="mt-2 max-w-prose text-ink-soft">{children}</p>}
     </div>
   );

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Atkinson_Hyperlegible_Next, Londrina_Solid } from "next/font/google";
+import { Atkinson_Hyperlegible, Londrina_Solid } from "next/font/google";
 import { Providers } from "@/components/providers";
 import "./globals.css";
 
@@ -10,9 +10,10 @@ const display = Londrina_Solid({
   weight: ["300", "400", "900"],
 });
 
-const body = Atkinson_Hyperlegible_Next({
+const body = Atkinson_Hyperlegible({
   variable: "--font-atkinson",
   subsets: ["latin"],
+  weight: ["400", "700"],
 });
 
 export const metadata: Metadata = {

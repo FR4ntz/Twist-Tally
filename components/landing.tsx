@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useScroll, useSpring } from "framer-motion";
 import { useAuth } from "@/lib/auth-context";
+import { formatNumber } from "@/lib/format";
 import { useCollection, useDoc } from "@/lib/hooks";
 import { sortTiers, withDefaults } from "@/lib/points";
-import type { PointsSettings, Reward } from "@/lib/types";
+import type { Bin, PointsSettings, Reward } from "@/lib/types";
 import { BinArt } from "./bin-art";
 import { BottleTrio } from "./bottle-art";
 import { Icon, Kancing } from "./icons";
@@ -14,16 +15,25 @@ import { Logo } from "./logo";
 import { Button, LinkButton, Points } from "./ui";
 
 const DEMO_CAPACITY = 12;
+const SMOOTH_EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
 export function Landing() {
-  const { user, loading } = useAuth();
-  const member = !loading && user !== null;
+  const { user, profile, loading } = useAuth();
+  const member = !loading && user !== null && profile !== null;
+
   const settingsDoc = useDoc<PointsSettings>("settings/points");
   const rewards = useCollection<Reward>({ path: "rewards", orderBy: ["pointsCost", "asc"], limit: 12 });
+  const bins = useCollection<Bin>({ path: "bins" });
+
+  const { scrollYProgress } = useScroll();
+  const scaleX = useSpring(scrollYProgress, { stiffness: 180, damping: 28, restDelta: 0.001 });
 
   const settings = withDefaults(settingsDoc.data);
   const tiers = sortTiers(settings.tiers);
   const catalog = (rewards.data ?? []).filter((r) => r.active).slice(0, 3);
+  const totalCommunityBottles = (bins.data ?? []).reduce((sum, b) => sum + b.totalBottles, 0);
+  const totalPointsIssued = (bins.data ?? []).reduce((sum, b) => sum + (b.pointsIssued ?? 0), 0);
+  const activeBinsCount = bins.data?.length ?? 0;
 
   const steps = [
     {
@@ -31,8 +41,8 @@ export function Landing() {
       body: "QR yang tertempel di tempat sampah menghubungkan akunmu ke sensornya. Tiap tempat sampah punya ID sendiri, misalnya SB-7K3P.",
     },
     {
-      title: "Masukkan botolmu",
-      body: "Sensor ultrasonik membaca tinggi tiap botol dan menghitung jumlahnya atas nama akunmu.",
+      title: "Taruh botol di alas & Deteksi Ukuran",
+      body: "Sensor ultrasonik membaca tinggi botol di atas alas secara real-time, lalu menghitung poin dari ukuran kecil, sedang, atau besar.",
     },
     {
       title: `Klaim dalam ${settings.depositExpiryMinutes} menit`,
@@ -46,28 +56,62 @@ export function Landing() {
 
   return (
     <div className="min-h-dvh overflow-x-clip">
-      <header className="mx-auto flex max-w-5xl items-center justify-between px-4 py-1 sm:px-6">
-        <Logo />
-        <LinkButton href={member ? "/beranda" : "/masuk"} variant="ghost" size="sm">
-          {member ? "Buka beranda" : "Masuk"}
-        </LinkButton>
+      <motion.div
+        aria-hidden="true"
+        style={{ scaleX }}
+        className="fixed inset-x-0 top-0 z-50 h-1 origin-left bg-thread"
+      />
+
+      <header className="sticky top-0 z-40 border-b-2 border-dashed border-stitch/60 bg-paper/90 backdrop-blur-md">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-1.5 sm:px-6">
+          <Logo href="/" />
+
+          <nav aria-label="Navigasi utama" className="flex items-center gap-5 text-sm font-bold text-ink-soft">
+            <a href="#cara-kerja" className="hidden min-h-11 items-center transition-colors hover:text-ink md:inline-flex">
+              Cara kerja
+            </a>
+            <a href="#simulasi" className="hidden min-h-11 items-center transition-colors hover:text-ink md:inline-flex">
+              Simulasi
+            </a>
+            {catalog.length > 0 && (
+              <a href="#hadiah" className="hidden min-h-11 items-center transition-colors hover:text-ink md:inline-flex">
+                Hadiah
+              </a>
+            )}
+            <a href="#tentang" className="hidden min-h-11 items-center transition-colors hover:text-ink md:inline-flex">
+              Tentang
+            </a>
+            <Link
+              href="/dashboard"
+              className="inline-flex min-h-11 items-center whitespace-nowrap rounded-[10px] border-2 border-ink bg-ink px-3.5 text-paper transition hover:-translate-y-0.5 hover:brightness-115"
+            >
+              Dashboard
+            </Link>
+          </nav>
+        </div>
       </header>
 
-      <section className="gingham border-y-2 border-dashed border-stitch">
+      <section className="gingham border-b-2 border-dashed border-stitch">
         <div className="mx-auto grid max-w-5xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[1.25fr_1fr] lg:items-center lg:py-16">
-          <div className="patch p-6 sm:p-9">
+          <motion.div
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, ease: SMOOTH_EASE }}
+            className="patch p-6 sm:p-9"
+          >
             <h1 className="text-[2.7rem] sm:text-6xl">Botol bekasmu bisa ditukar jadi produk daur ulang.</h1>
             <p className="mt-4 max-w-xl text-lg text-ink-soft">
-              Scan QR di tempat sampah Twist &amp; Tally, lalu masukkan botolmu. Sensor menghitung jumlah dan tinggi botol,
-              poinnya tercatat atas namamu, dan kamu tinggal klaim di aplikasi.
+              Scan QR di tempat sampah Twist &amp; Tally, lalu taruh botol di atas alas. Sensor menghitung jumlah dan tinggi
+              botol, poinnya tercatat atas namamu, dan kamu tinggal klaim di aplikasi.
             </p>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               {member ? (
                 <>
-                  <LinkButton href="/beranda" variant="thread">
-                    Buka beranda dan lihat poinmu
+                  <LinkButton href="/dashboard" variant="thread">
+                    Buka Dashboard
                   </LinkButton>
                   <LinkButton href="/scan" variant="ghost">
+                    <Icon name="scan" size={20} />
                     Scan QR tempat sampah
                   </LinkButton>
                 </>
@@ -82,18 +126,19 @@ export function Landing() {
                 </>
               )}
             </div>
-          </div>
+          </motion.div>
 
           <div className="mx-auto w-full max-w-sm lg:max-w-none">
             <BottleTrio />
             <motion.figure
-              initial={{ y: -40, rotate: -6, opacity: 0 }}
+              initial={{ y: -32, rotate: -5, opacity: 0 }}
               animate={{ y: 0, rotate: 2.5, opacity: 1 }}
-              transition={{ type: "spring", stiffness: 140, damping: 14, delay: 0.55 }}
+              whileHover={{ rotate: 0, y: -4 }}
+              transition={{ type: "spring", stiffness: 150, damping: 16, delay: 0.4 }}
               className="mx-auto mt-9 w-full max-w-[17rem] lg:ml-auto lg:mr-0"
               aria-label="Contoh struk setoran"
             >
-              <div className="receipt px-6 pb-9 pt-6 text-ink">
+              <div className="receipt px-6 pb-9 pt-6 text-ink shadow-md">
                 <p className="text-xs font-bold text-ink-soft">CONTOH TAMPILAN STRUK</p>
                 <p className="mt-2 font-display text-3xl font-black">Setoran selesai</p>
                 <dl className="mt-4 grid gap-2 border-y-2 border-dashed border-stitch py-4 text-sm">
@@ -116,23 +161,51 @@ export function Landing() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-5xl px-4 py-14 sm:px-6">
+      <section id="cara-kerja" className="mx-auto max-w-5xl scroll-mt-16 px-4 py-14 sm:px-6">
+        {activeBinsCount > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.25 }}
+            transition={{ duration: 0.4, ease: SMOOTH_EASE }}
+            className="mb-12 grid gap-3 sm:grid-cols-3"
+          >
+            <div className="patch patch-denim p-5">
+              <p className="text-sm text-on-fill/85">Botol terkumpul bersama</p>
+              <p className="mt-1 font-display text-5xl font-black leading-none">{formatNumber(totalCommunityBottles)}</p>
+            </div>
+            <div className="patch patch-linen p-5">
+              <p className="text-sm text-ink-soft">Poin diterbitkan sensor</p>
+              <p className="mt-1 font-display text-5xl font-black leading-none">{formatNumber(totalPointsIssued)}</p>
+            </div>
+            <div className="patch p-5">
+              <p className="text-sm text-ink-soft">Tempat sampah pintar aktif</p>
+              <p className="mt-1 font-display text-5xl font-black leading-none">{formatNumber(activeBinsCount)}</p>
+            </div>
+          </motion.div>
+        )}
+
         <div className="grid gap-8 lg:grid-cols-[1fr_1.4fr]">
-          <div>
+          <motion.div
+            initial={{ opacity: 0, y: 14 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.25 }}
+            transition={{ duration: 0.4, ease: SMOOTH_EASE }}
+          >
             <h2 className="text-4xl sm:text-5xl">Dari botol sampai poin</h2>
             <p className="mt-3 max-w-sm text-ink-soft">
               Satu alur dari tempat sampah ke ponselmu. Tidak ada kartu atau perangkat tambahan.
             </p>
-          </div>
+          </motion.div>
           <ol className="relative grid gap-7">
             <span aria-hidden="true" className="absolute bottom-6 left-[15px] top-6 border-l-2 border-dashed border-stitch" />
             {steps.map((step, i) => (
               <motion.li
                 key={step.title}
-                initial={{ opacity: 0, x: 14 }}
+                initial={{ opacity: 0, x: 16 }}
                 whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true, margin: "-40px" }}
-                transition={{ duration: 0.35, delay: i * 0.04 }}
+                viewport={{ once: true, amount: 0.3 }}
+                transition={{ duration: 0.38, delay: i * 0.06, ease: SMOOTH_EASE }}
                 className="relative flex gap-4"
               >
                 <Kancing size={32} className="relative z-10 shrink-0 bg-paper text-fill [--kancing-hole:#fbf8f1]" />
@@ -149,7 +222,7 @@ export function Landing() {
       <Calculator tiers={tiers} expiryMinutes={settings.depositExpiryMinutes} />
 
       {catalog.length > 0 && (
-        <section className="mx-auto max-w-5xl px-4 py-14 sm:px-6">
+        <section id="hadiah" className="mx-auto max-w-5xl scroll-mt-16 px-4 py-14 sm:px-6">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <h2 className="text-3xl sm:text-4xl">Hadiah yang bisa kamu tukar</h2>
             <Link href="/tukar" className="inline-flex min-h-11 items-center font-bold underline underline-offset-4">
@@ -157,10 +230,14 @@ export function Landing() {
             </Link>
           </div>
           <ul className="mt-6 grid gap-4 sm:grid-cols-3">
-            {catalog.map((reward) => (
+            {catalog.map((reward, i) => (
               <motion.li
                 key={reward.id}
-                whileHover={{ rotate: 2, y: -3 }}
+                initial={{ opacity: 0, y: 14 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.2 }}
+                transition={{ duration: 0.35, delay: i * 0.06, ease: SMOOTH_EASE }}
+                whileHover={{ rotate: 1.5, y: -4 }}
                 style={{ transformOrigin: "50% 0" }}
                 className="patch patch-linen flex flex-col gap-2 p-5"
               >
@@ -185,7 +262,7 @@ export function Landing() {
         </section>
       )}
 
-      <footer className="border-t-2 border-dashed border-stitch px-4 py-8 text-sm text-ink-soft sm:px-6">
+      <footer id="tentang" className="scroll-mt-16 border-t-2 border-dashed border-stitch px-4 py-8 text-sm text-ink-soft sm:px-6">
         <div className="mx-auto flex max-w-5xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="max-w-xl">
             Twist &amp; Tally adalah proyek mahasiswa lintas prodi. Botol PET yang terkumpul dicacah lalu dipres panas
@@ -217,7 +294,7 @@ function Calculator({ tiers, expiryMinutes }: { tiers: ReturnType<typeof sortTie
   }
 
   return (
-    <section aria-labelledby="coba" className="border-y-2 border-dashed border-stitch bg-paper-deep">
+    <section id="simulasi" aria-labelledby="coba" className="scroll-mt-16 border-y-2 border-dashed border-stitch bg-paper-deep/90">
       <div className="mx-auto grid max-w-5xl gap-8 px-4 py-12 sm:px-6 md:grid-cols-[auto_1fr] md:items-center">
         <BinArt percent={Math.round((dropped.length / DEMO_CAPACITY) * 100)} drop={dropId > 0 ? { id: dropId } : null} className="mx-auto w-56 md:w-64" />
         <div>
@@ -232,11 +309,14 @@ function Calculator({ tiers, expiryMinutes }: { tiers: ReturnType<typeof sortTie
           <ul className="mt-5 grid grid-cols-3 gap-3">
             {tiers.map((tier, i) => (
               <li key={tier.label}>
-                <button
+                <motion.button
                   type="button"
+                  whileHover={full ? undefined : { y: -4 }}
+                  whileTap={full ? undefined : { scale: 0.96 }}
+                  transition={{ type: "spring", stiffness: 320, damping: 22 }}
                   onClick={() => add(i)}
                   disabled={full}
-                  className="patch flex min-h-32 w-full flex-col items-center justify-end gap-1 px-2 pb-3 pt-2 text-center transition-transform hover:-translate-y-1 active:translate-y-0 active:scale-95 disabled:opacity-50"
+                  className="patch flex min-h-32 w-full flex-col items-center justify-end gap-1 px-2 pb-3 pt-2 text-center disabled:opacity-50"
                 >
                   <span className="text-ink-soft">
                     <Icon name="bottle" size={30 + i * 14} />
@@ -251,12 +331,12 @@ function Calculator({ tiers, expiryMinutes }: { tiers: ReturnType<typeof sortTie
                   </span>
                   <Points value={tier.points} size={16} className="text-sm" />
                   <span className="sr-only">. Tambah satu botol {tier.label.toLowerCase()}</span>
-                </button>
+                </motion.button>
               </li>
             ))}
           </ul>
 
-          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-patch bg-card px-5 py-4" aria-live="polite">
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-patch bg-card px-5 py-4 shadow-sm" aria-live="polite">
             <div>
               <p className="text-sm text-ink-soft">
                 {dropped.length === 0

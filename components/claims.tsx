@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ActionError, claimDeposit, expireDeposit } from "@/lib/actions";
+import { useArduinoSerial } from "@/lib/arduino-serial";
 import { useAuth } from "@/lib/auth-context";
 import { useCelebration } from "@/lib/celebrate";
 import { useCollection, useNow } from "@/lib/hooks";
@@ -30,6 +31,7 @@ function useClaim(deposit: WithId<Deposit>) {
     setBusy(true);
     try {
       const result = await claimDeposit(user.uid, deposit.id);
+      useArduinoSerial.getState().consumeCurrentBottle();
       useCelebration.getState().fire(`+${result.points}`, `poin masuk dari ${deposit.binName}`);
     } catch (error) {
       toast.error(error instanceof ActionError ? error.message : "Klaim gagal. Coba lagi sebentar lagi.");
@@ -194,17 +196,24 @@ export function CelebrationOverlay() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="pointer-events-none fixed inset-0 z-[70] grid place-items-center bg-[rgb(29_33_88/0.84)]"
+          className="pointer-events-none fixed inset-0 z-[70] grid place-items-center bg-[rgb(29_33_88/0.86)]"
         >
           <motion.div
-            initial={{ scale: 0.5, y: 20 }}
-            animate={{ scale: 1, y: 0 }}
-            transition={{ type: "spring", stiffness: 240, damping: 14 }}
-            className="relative text-center text-on-fill"
+            initial={{ scale: 0.45, y: 28, rotate: -6 }}
+            animate={{ scale: 1, y: 0, rotate: 0 }}
+            transition={{ type: "spring", stiffness: 250, damping: 14 }}
+            className="relative px-6 text-center text-on-fill"
           >
-            <Burst count={20} />
-            <p className="font-display text-[7rem] font-black leading-none text-thread">{current.big}</p>
-            <p className="mt-1 text-xl font-bold">{current.small}</p>
+            <Burst count={24} />
+            <motion.span
+              aria-hidden="true"
+              initial={{ scale: 0.6, opacity: 0.8 }}
+              animate={{ scale: 1.8, opacity: 0 }}
+              transition={{ duration: 0.9, ease: "easeOut" }}
+              className="pointer-events-none absolute inset-0 m-auto size-40 rounded-full border-4 border-dashed border-thread"
+            />
+            <p className="relative font-display text-[6.5rem] font-black leading-none text-thread sm:text-[7.5rem]">{current.big}</p>
+            <p className="relative mt-2 text-xl font-bold">{current.small}</p>
           </motion.div>
         </motion.div>
       )}

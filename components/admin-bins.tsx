@@ -202,9 +202,9 @@ export function AdminBins() {
             </Button>
           }
         >
-          Daftarkan tempat sampah dulu supaya QR, simulator sensor, dan layar tempat sampah bisa dipakai.{" "}
-          <Link href="/admin/simulator" className="font-bold underline">
-            Lihat simulator
+          Daftarkan tempat sampah dulu supaya QR dan stasiun deteksi botol bisa dipakai.{" "}
+          <Link href="/admin/deteksi" className="font-bold underline">
+            Buka Deteksi botol
           </Link>
         </EmptyState>
       )}

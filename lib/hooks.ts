@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import {
   collection,
   doc,
@@ -92,4 +92,14 @@ export function useNow(intervalMs = 1000): number {
     return () => clearInterval(id);
   }, [intervalMs]);
   return now;
+}
+
+const subscribeOrigin = () => () => {};
+
+export function useOrigin(): string {
+  return useSyncExternalStore(
+    subscribeOrigin,
+    () => window.location.origin,
+    () => "",
+  );
 }

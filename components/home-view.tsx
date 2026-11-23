@@ -3,17 +3,17 @@
 import Link from "next/link";
 import { useEffect } from "react";
 import { animate, motion, useMotionValue, useReducedMotion, useTransform } from "framer-motion";
+import { liveSession } from "@/lib/actions";
 import { useAuth } from "@/lib/auth-context";
 import { fillPercent, formatNumber } from "@/lib/format";
-import { liveSession } from "@/lib/actions";
 import { useCollection, useNow } from "@/lib/hooks";
 import type { Bin, LedgerEntry, Reward } from "@/lib/types";
 import { BinArt } from "./bin-art";
 import { Bottle } from "./bottle-art";
 import { Countdown } from "./countdown";
-import { Kancing } from "./icons";
+import { Icon, Kancing } from "./icons";
 import { LedgerRow } from "./rows";
-import { Chip, EmptyState, ErrorState, FillGauge, LinkButton, LoadingBlock } from "./ui";
+import { Chip, EmptyState, ErrorState, FillGauge, LinkButton, LoadingBlock, PageTitle } from "./ui";
 
 export function CountUp({ value }: { value: number }) {
   const reduce = useReducedMotion();
@@ -33,7 +33,7 @@ export function CountUp({ value }: { value: number }) {
 }
 
 export function HomeView() {
-  const { profile } = useAuth();
+  const { profile, isAdmin } = useAuth();
   const uid = profile?.id ?? null;
   const rewards = useCollection<Reward>({ path: "rewards", orderBy: ["pointsCost", "asc"], limit: 30 });
   const bins = useCollection<Bin>({ path: "bins" });
@@ -54,6 +54,18 @@ export function HomeView() {
 
   return (
     <div className="grid gap-8">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <PageTitle title="Dashboard" className="mb-0">
+          Kelola poin, scan tempat sampah, dan tukar hadiahmu.
+        </PageTitle>
+        {isAdmin && (
+          <LinkButton href="/admin" variant="ghost" size="sm">
+            <Icon name="sliders" size={16} />
+            Panel admin
+          </LinkButton>
+        )}
+      </div>
+
       {connected && connectedSession && (
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
           <Link
@@ -64,19 +76,30 @@ export function HomeView() {
               <Countdown expiresAt={connectedSession.expiresAt} totalMs={5 * 60_000} size={52} label="Sisa waktu sambungan" />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block font-display text-2xl font-black leading-tight">Tersambung ke {connected.name}</span>
-              <span className="block text-sm text-on-fill/85">Masukkan botolmu, poinnya tercatat atas namamu.</span>
+              <span className="block font-display text-2xl font-black leading-tight">
+                Tersambung ke {connected.name}
+              </span>
+              <span className="block text-sm text-on-fill/85">
+                Taruh botol di alas agar sensor membaca ukuran dan poinnya masuk ke akunmu.
+              </span>
             </span>
+            <Icon name="forward" size={20} className="shrink-0" />
           </Link>
         </motion.div>
       )}
+
       <section aria-labelledby="saldo" className="grid gap-4 md:grid-cols-[1.4fr_1fr]">
-        <div className="patch patch-denim overflow-hidden p-6 sm:p-7">
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: "spring", stiffness: 220, damping: 22 }}
+          className="patch patch-denim overflow-hidden p-6 sm:p-7"
+        >
           <Bottle height={84} className="pointer-events-none absolute right-4 top-3 rotate-[14deg] opacity-95" />
           <p className="text-on-fill/85">Halo, {profile.name}</p>
-          <h1 id="saldo" className="sr-only">
+          <h2 id="saldo" className="sr-only">
             Saldo poin
-          </h1>
+          </h2>
           <p className="mt-3 flex items-center gap-3 font-display font-black leading-none">
             <Kancing size={46} className="shrink-0 text-thread [--kancing-hole:#2a5090]" />
             <span className="text-[4.5rem] sm:text-[5.5rem]" aria-hidden="true">
@@ -92,7 +115,7 @@ export function HomeView() {
               ? `${formatNumber(profile.totalBottles)} botol sudah kamu setor.`
               : "Belum ada botol yang kamu setor."}
           </p>
-        </div>
+        </motion.div>
 
         <div className="flex flex-col justify-between gap-4 rounded-patch border-2 border-dashed border-stitch p-5">
           {rewards.loading ? (

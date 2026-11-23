@@ -72,6 +72,7 @@
 @layer base {
   html {
     background: var(--paper);
+    scroll-behavior: smooth;
     -webkit-text-size-adjust: 100%;
   }
 
@@ -141,6 +142,7 @@
     background: var(--card);
     border-radius: var(--radius-patch);
     color: var(--ink);
+    transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
   }
   .patch::after {
     content: "";
