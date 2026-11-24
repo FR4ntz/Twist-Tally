@@ -195,11 +195,11 @@ export function Landing() {
             <div className="relative">
               {/* Maskot mengintip dari balik tepi kiri kartu */}
               <motion.div
-                initial={{ x: 28, rotate: 0, opacity: 0 }}
-                whileInView={{ x: 0, rotate: -16, opacity: 1 }}
+                initial={{ x: 24, rotate: 0, opacity: 0 }}
+                whileInView={{ x: 0, rotate: -18, opacity: 1 }}
                 viewport={{ once: true, amount: 0.35 }}
                 transition={{ type: "spring", stiffness: 170, damping: 16, delay: 0.1 }}
-                className="pointer-events-none absolute -left-8 top-4 z-0 sm:-left-16 lg:-left-20"
+                className="pointer-events-none absolute -left-5 top-2 z-0 sm:-left-9 lg:-left-11"
                 style={{ transformOrigin: "80% 80%" }}
               >
                 <Mascot pose="idle" size={160} float={false} />
