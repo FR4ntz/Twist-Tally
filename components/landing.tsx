@@ -184,24 +184,36 @@ export function Landing() {
           </motion.div>
         )}
 
-        <div className="grid gap-8 lg:grid-cols-[1.05fr_1.25fr] lg:items-center">
+        <div className="grid gap-8 lg:grid-cols-[1fr_1.35fr] lg:items-center">
           <motion.div
             initial={{ opacity: 0, y: 14 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.25 }}
             transition={{ duration: 0.4, ease: SMOOTH_EASE }}
-            className="relative grid gap-2"
+            className="grid gap-6"
           >
-            <div className="patch relative z-20 p-5 sm:p-6">
-              <h2 className="text-4xl sm:text-5xl">Dari botol sampai poin</h2>
-              <p className="mt-2.5 max-w-md text-ink-soft">
-                Alur ringkas dari tempat sampah ke ponselmu, lalu botol PET diproses menjadi produk daur ulang baru.
-              </p>
+            <div className="relative">
+              {/* Maskot mengintip dari balik tepi kiri kartu */}
+              <motion.div
+                initial={{ x: 28, rotate: 0, opacity: 0 }}
+                whileInView={{ x: 0, rotate: -16, opacity: 1 }}
+                viewport={{ once: true, amount: 0.35 }}
+                transition={{ type: "spring", stiffness: 170, damping: 16, delay: 0.1 }}
+                className="pointer-events-none absolute -left-8 top-4 z-0 sm:-left-16 lg:-left-20"
+                style={{ transformOrigin: "80% 80%" }}
+              >
+                <Mascot pose="idle" size={160} float={false} />
+              </motion.div>
+
+              <div className="patch relative z-10 p-5 sm:p-6">
+                <h2 className="text-4xl sm:text-5xl">Dari botol sampai poin</h2>
+                <p className="mt-2.5 max-w-md text-ink-soft">
+                  Alur ringkas dari tempat sampah ke ponselmu, lalu botol PET diproses menjadi produk daur ulang baru.
+                </p>
+              </div>
             </div>
-            <div className="relative -mt-8 flex items-end justify-center gap-2 px-2 pt-4 sm:justify-start">
-              <Mascot pose="idle" size={290} className="z-0 -mr-6 shrink-0" />
-              <BottleTrio scale={0.78} className="relative z-10 pb-2" />
-            </div>
+
+            <BottleTrio scale={0.78} className="py-2" />
           </motion.div>
 
           <ol className="relative grid gap-5">
