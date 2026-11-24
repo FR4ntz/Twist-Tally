@@ -9,8 +9,7 @@ import { formatNumber } from "@/lib/format";
 import { useCollection, useDoc } from "@/lib/hooks";
 import { sortTiers, withDefaults } from "@/lib/points";
 import type { Bin, PointsSettings, Reward } from "@/lib/types";
-import heroFabricImg from "@/public/images/hero-fabric-recycle.jpg";
-import textileCraftImg from "@/public/images/textile-upcycle-craft.jpg";
+import heroStationImg from "@/public/images/hero-recycle-station.jpg";
 import { BinArt } from "./bin-art";
 import { BottleTrio } from "./bottle-art";
 import { FabricBackdrop } from "./fabric-backdrop";
@@ -53,8 +52,8 @@ export function Landing() {
       body: `Klaim total poinmu sebelum batas ${settings.depositExpiryMinutes} menit, lalu hubungan otomatis dilepas agar pengguna lain dapat giliran.`,
     },
     {
-      title: "Tukar jadi produk kain daur ulang",
-      body: "Tukarkan poinmu dengan totebag, syal tenun, atau produk tekstil daur ulang lewat katalog.",
+      title: "Tukar jadi produk daur ulang",
+      body: "Pilih hadiah di katalog, tukar poinmu, dan tunjukkan kode voucher ke admin untuk mengambil hasilnya.",
     },
   ];
 
@@ -95,7 +94,7 @@ export function Landing() {
         </div>
       </header>
 
-      {/* Hero dengan latar kain animasi dan ilustrasi botol -> kain */}
+      {/* Hero dengan latar gelombang animasi lembut & ilustrasi stasiun daur ulang botol */}
       <section className="gingham relative overflow-hidden border-b border-edge/30">
         <FabricBackdrop variant="hero" />
 
@@ -106,11 +105,11 @@ export function Landing() {
             transition={{ duration: 0.45, ease: SMOOTH_EASE }}
             className="patch p-6 sm:p-9"
           >
-            <Chip tone="denim">Daur Ulang PET ke Tekstil</Chip>
-            <h1 className="mt-3 text-[2.7rem] sm:text-6xl">Botol bekasmu ditenun menjadi karya kain baru.</h1>
+            <Chip tone="denim">Daur Ulang Botol Pintar</Chip>
+            <h1 className="mt-3 text-[2.7rem] sm:text-6xl">Botol bekasmu bisa ditukar jadi produk daur ulang.</h1>
             <p className="mt-4 max-w-xl text-lg text-ink-soft">
-              Scan QR di stasiun Twist &amp; Tally, taruh botol di atas alas ukur ultrasonik, kumpulkan poinnya, dan tukar
-              menjadi produk kain daur ulang.
+              Scan QR di stasiun Twist &amp; Tally, taruh botol di atas alas ukur ultrasonik, kumpulkan poinnya, lalu
+              tukar dengan berbagai hadiah menarik.
             </p>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               {member ? (
@@ -145,14 +144,14 @@ export function Landing() {
             <div className="patch overflow-hidden p-3 shadow-lg">
               <div className="overflow-hidden rounded-[12px] bg-paper">
                 <Image
-                  src={heroFabricImg}
-                  alt="Ilustrasi botol plastik PET berubah menjadi lembaran kain tenun berwarna biru denim dan emas"
+                  src={heroStationImg}
+                  alt="Ilustrasi tempat sampah pintar Twist & Tally mengumpulkan botol plastik PET dan menghasilkan poin hadiah"
                   priority
                   className="h-auto w-full object-cover"
                 />
               </div>
               <div className="mt-3 flex items-center justify-between gap-2 px-1 pb-1">
-                <span className="text-xs font-bold text-ink-soft">PET 100% Terolah ke Serat Kain</span>
+                <span className="text-xs font-bold text-ink-soft">Sensor Ukur Tinggi Otomatis</span>
                 <Points value={40} size={18} className="text-sm" />
               </div>
             </div>
@@ -195,7 +194,7 @@ export function Landing() {
             <div>
               <h2 className="text-4xl sm:text-5xl">Dari botol sampai poin</h2>
               <p className="mt-3 max-w-sm text-ink-soft">
-                Alur ringkas dari tempat sampah ke akunmu, lalu diolah menjadi produk tekstil bernilai.
+                Alur ringkas dari tempat sampah ke ponselmu, lalu botol PET diproses menjadi produk daur ulang baru.
               </p>
             </div>
             <BottleTrio scale={0.78} className="py-2" />
@@ -230,7 +229,7 @@ export function Landing() {
       {catalog.length > 0 && (
         <section id="hadiah" className="mx-auto max-w-5xl scroll-mt-16 px-4 py-14 sm:px-6">
           <div className="flex flex-wrap items-end justify-between gap-3">
-            <h2 className="text-3xl sm:text-4xl">Hadiah produk daur ulang</h2>
+            <h2 className="text-3xl sm:text-4xl">Hadiah yang bisa kamu tukar</h2>
             <Link href="/tukar" className="inline-flex min-h-11 items-center font-bold underline underline-offset-4">
               Lihat seluruh katalog
             </Link>
@@ -267,37 +266,11 @@ export function Landing() {
         </section>
       )}
 
-      {/* Showcase transformasi kain + Footer */}
-      <section className="mx-auto max-w-5xl px-4 pb-12 sm:px-6">
-        <motion.div
-          initial={{ opacity: 0, y: 14 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.2 }}
-          className="patch grid items-center gap-6 overflow-hidden p-5 sm:p-7 md:grid-cols-[1.1fr_1fr]"
-        >
-          <div className="overflow-hidden rounded-[12px] bg-paper">
-            <Image
-              src={textileCraftImg}
-              alt="Gulungan kain tenun daur ulang bersama totebag dongker, syal tenun emas, dan pouch kanvas"
-              className="h-auto w-full object-cover"
-            />
-          </div>
-          <div>
-            <Chip tone="thread">Nilai Ekonomi Sirkular</Chip>
-            <h2 className="mt-3 text-3xl sm:text-4xl">Dari limbah plastik jadi serat tekstil</h2>
-            <p className="mt-2.5 text-ink-soft">
-              Twist &amp; Tally menggabungkan pemilahan berbasis sensor ultrasonik dengan pengolahan serat poliester daur
-              ulang untuk menghasilkan kain tenun dan produk sehari-hari yang tahan lama.
-            </p>
-          </div>
-        </motion.div>
-      </section>
-
       <footer id="tentang" className="scroll-mt-16 border-t border-edge/30 px-4 py-8 text-sm text-ink-soft sm:px-6">
         <div className="mx-auto flex max-w-5xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="max-w-xl">
-            Twist &amp; Tally adalah proyek mahasiswa lintas prodi. Botol PET yang terkumpul diproses menjadi bahan
-            produk tekstil dan daur ulang baru.
+            Twist &amp; Tally adalah proyek mahasiswa lintas prodi. Botol PET yang terkumpul dicacah lalu dipres panas
+            menjadi bahan produk baru.
           </p>
           <Link href="/admin" className="inline-flex min-h-11 items-center font-bold text-ink underline underline-offset-4">
             Panel admin

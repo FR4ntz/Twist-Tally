@@ -3,8 +3,7 @@
 import { motion, useReducedMotion } from "framer-motion";
 
 /**
- * Latar kain tenun animasi: pita tekstil lembut bergerak perlahan dengan warna tema (--denim, --thread, --paper-deep)
- * untuk memperkuat identitas daur ulang botol menjadi produk kain/tekstil.
+ * Latar gelombang bernuansa lipatan kain lembut dengan warna tema (--denim, --thread, --paper-deep).
  */
 export function FabricBackdrop({ variant = "subtle" }: { variant?: "hero" | "subtle" }) {
   const reduce = useReducedMotion();

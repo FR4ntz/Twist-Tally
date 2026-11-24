@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import { authErrorMessage, useAuth } from "@/lib/auth-context";
-import heroFabricImg from "@/public/images/hero-fabric-recycle.jpg";
+import heroStationImg from "@/public/images/hero-recycle-station.jpg";
 import { FabricBackdrop } from "./fabric-backdrop";
 import { Icon } from "./icons";
 import { Logo } from "./logo";
@@ -100,8 +100,8 @@ export function AuthForm() {
         <div className="relative z-10 flex h-full flex-col justify-end gap-8 p-10">
           <div className="patch max-w-md overflow-hidden p-3">
             <Image
-              src={heroFabricImg}
-              alt="Ilustrasi daur ulang botol menjadi kain tenun"
+              src={heroStationImg}
+              alt="Ilustrasi stasiun pengumpulan botol plastik daur ulang Twist & Tally"
               className="h-auto w-full rounded-[10px] object-cover"
             />
           </div>
