@@ -9,9 +9,9 @@ import { fillPercent, formatNumber } from "@/lib/format";
 import { useCollection, useNow } from "@/lib/hooks";
 import type { Bin, LedgerEntry, Reward } from "@/lib/types";
 import { BinArt } from "./bin-art";
-import { Bottle } from "./bottle-art";
 import { Countdown } from "./countdown";
 import { Icon, KainMark } from "./icons";
+import { Mascot } from "./mascot";
 import { LedgerRow } from "./rows";
 import { Chip, EmptyState, ErrorState, FillGauge, LinkButton, LoadingBlock, PageTitle } from "./ui";
 
@@ -95,7 +95,12 @@ export function HomeView() {
           transition={{ type: "spring", stiffness: 220, damping: 22 }}
           className="patch patch-denim overflow-hidden p-6 sm:p-7"
         >
-          <Bottle height={84} className="pointer-events-none absolute right-4 top-3 rotate-[14deg] opacity-95" />
+          <Mascot
+            pose="cheer"
+            size={84}
+            halo
+            className="pointer-events-none absolute right-4 top-4 hidden sm:inline-flex"
+          />
           <p className="text-on-fill/85">Halo, {profile.name}</p>
           <h2 id="saldo" className="sr-only">
             Saldo poin

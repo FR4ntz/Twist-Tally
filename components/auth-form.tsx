@@ -9,6 +9,7 @@ import heroStationImg from "@/public/images/hero-recycle-station.jpg";
 import { FabricBackdrop } from "./fabric-backdrop";
 import { Icon } from "./icons";
 import { Logo } from "./logo";
+import { Mascot } from "./mascot";
 import { Button, Field, Tabs } from "./ui";
 
 type Mode = "masuk" | "daftar";
@@ -105,11 +106,14 @@ export function AuthForm() {
               className="h-auto w-full rounded-[10px] object-cover"
             />
           </div>
-          <div className="patch max-w-md p-7">
-            <p className="font-display text-4xl font-black leading-none">Satu akun untuk semua setoranmu.</p>
-            <p className="mt-3 text-ink-soft">
-              Poin dari setiap kode QR tersimpan di akun ini, dan bisa ditukar jadi produk daur ulang kapan saja.
-            </p>
+          <div className="patch flex max-w-md items-center gap-4 p-6">
+            <Mascot pose="calm" size={88} />
+            <div>
+              <p className="font-display text-3xl font-black leading-none">Satu akun untuk semua setoranmu.</p>
+              <p className="mt-2 text-sm text-ink-soft">
+                Poin dari setiap kode QR tersimpan di akun ini, dan bisa ditukar jadi produk daur ulang kapan saja.
+              </p>
+            </div>
           </div>
         </div>
       </aside>

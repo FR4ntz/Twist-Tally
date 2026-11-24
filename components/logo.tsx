@@ -1,5 +1,6 @@
+import Image from "next/image";
 import Link from "next/link";
-import { KainMark } from "./icons";
+import logoMark from "@/public/images/logo-mark.png";
 
 export function Logo({ href = "/", inverted = false }: { href?: string; inverted?: boolean }) {
   return (
@@ -9,7 +10,9 @@ export function Logo({ href = "/", inverted = false }: { href?: string; inverted
         inverted ? "text-on-fill" : "text-ink"
       }`}
     >
-      <KainMark size={26} className="text-fill [--kain-line:#fbf8f1]" />
+      <span className="grid size-9 place-items-center rounded-[10px] bg-card/95 p-1 shadow-[0_1px_0_rgb(29_33_88/0.14)]">
+        <Image src={logoMark} alt="" width={28} height={36} className="h-7 w-auto object-contain" priority />
+      </span>
       <span>Twist &amp; Tally</span>
     </Link>
   );

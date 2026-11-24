@@ -15,6 +15,7 @@ import { BottleTrio } from "./bottle-art";
 import { FabricBackdrop } from "./fabric-backdrop";
 import { Icon, KainMark } from "./icons";
 import { Logo } from "./logo";
+import { Mascot } from "./mascot";
 import { Button, Chip, LinkButton, Points } from "./ui";
 
 const DEMO_CAPACITY = 12;
@@ -197,7 +198,10 @@ export function Landing() {
                 Alur ringkas dari tempat sampah ke ponselmu, lalu botol PET diproses menjadi produk daur ulang baru.
               </p>
             </div>
-            <BottleTrio scale={0.78} className="py-2" />
+            <div className="flex items-end gap-4 py-2">
+              <Mascot pose="idle" size={120} />
+              <BottleTrio scale={0.72} />
+            </div>
           </motion.div>
 
           <ol className="relative grid gap-5">
@@ -267,11 +271,14 @@ export function Landing() {
       )}
 
       <footer id="tentang" className="scroll-mt-16 border-t border-edge/30 px-4 py-8 text-sm text-ink-soft sm:px-6">
-        <div className="mx-auto flex max-w-5xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="max-w-xl">
-            Twist &amp; Tally adalah proyek mahasiswa lintas prodi. Botol PET yang terkumpul dicacah lalu dipres panas
-            menjadi bahan produk baru.
-          </p>
+        <div className="mx-auto flex max-w-5xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3.5">
+            <Mascot pose="calm" size={62} float={false} />
+            <p className="max-w-xl">
+              Twist &amp; Tally adalah proyek mahasiswa lintas prodi. Botol PET yang terkumpul dicacah lalu dipres panas
+              menjadi bahan produk baru.
+            </p>
+          </div>
           <Link href="/admin" className="inline-flex min-h-11 items-center font-bold text-ink underline underline-offset-4">
             Panel admin
           </Link>
@@ -338,26 +345,29 @@ function Calculator({ tiers, expiryMinutes }: { tiers: ReturnType<typeof sortTie
           </ul>
 
           <div className="patch mt-5 flex flex-wrap items-center justify-between gap-3 px-5 py-4" aria-live="polite">
-            <div>
-              <p className="text-sm text-ink-soft">
-                {dropped.length === 0
-                  ? "Belum ada botol di dalam."
-                  : full
-                    ? "Tempat sampah penuh. Kosongkan untuk mencoba lagi."
-                    : `${dropped.length} botol di dalam`}
-              </p>
-              <AnimatePresence mode="popLayout">
-                <motion.p
-                  key={total}
-                  initial={{ y: -10, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  className="flex items-center gap-2 font-display text-5xl font-black leading-none"
-                >
-                  <KainMark size={30} className="text-thread [--kain-line:#2a1b00]" />
-                  {total}
-                  <span className="text-xl font-bold">poin</span>
-                </motion.p>
-              </AnimatePresence>
+            <div className="flex items-center gap-3">
+              <Mascot pose={total > 0 ? "cheer" : "idle"} size={66} />
+              <div>
+                <p className="text-sm text-ink-soft">
+                  {dropped.length === 0
+                    ? "Belum ada botol di dalam."
+                    : full
+                      ? "Tempat sampah penuh. Kosongkan untuk mencoba lagi."
+                      : `${dropped.length} botol di dalam`}
+                </p>
+                <AnimatePresence mode="popLayout">
+                  <motion.p
+                    key={total}
+                    initial={{ y: -10, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    className="flex items-center gap-2 font-display text-5xl font-black leading-none"
+                  >
+                    <KainMark size={30} className="text-thread [--kain-line:#2a1b00]" />
+                    {total}
+                    <span className="text-xl font-bold">poin</span>
+                  </motion.p>
+                </AnimatePresence>
+              </div>
             </div>
             <Button variant="ghost" size="sm" disabled={dropped.length === 0} onClick={() => setDropped([])}>
               Kosongkan

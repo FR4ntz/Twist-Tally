@@ -27,6 +27,7 @@ import { Countdown } from "./countdown";
 import { FabricBackdrop } from "./fabric-backdrop";
 import { Icon } from "./icons";
 import { Logo } from "./logo";
+import { Mascot } from "./mascot";
 import { toast } from "./providers";
 import {
   Button,
@@ -400,13 +401,18 @@ export function AdminDeteksi() {
                 <Chip tone="denim">Unit {bin.sampahId}</Chip>
               </div>
 
-              <h1 id="judul-pameran" className="mt-3 text-5xl leading-[0.95] sm:text-6xl lg:text-[4.25rem]">
-                Deteksi Ukuran Botol Pintar
-              </h1>
-              <p className="mt-3 max-w-xl text-base text-ink-soft sm:text-lg">
-                Scan QR untuk menghubungkan akunmu, setor 1 atau beberapa botol sekaligus di atas alas ukur, lalu klaim
-                poin dan putuskan hubungan saat selesai.
-              </p>
+              <div className="mt-3 flex items-center gap-4">
+                <Mascot pose="idle" size={88} className="hidden sm:inline-flex" />
+                <div>
+                  <h1 id="judul-pameran" className="text-5xl leading-[0.95] sm:text-6xl lg:text-[4.25rem]">
+                    Deteksi Ukuran Botol Pintar
+                  </h1>
+                  <p className="mt-3 max-w-xl text-base text-ink-soft sm:text-lg">
+                    Scan QR untuk menghubungkan akunmu, setor 1 atau beberapa botol sekaligus di atas alas ukur, lalu
+                    klaim poin dan putuskan hubungan saat selesai.
+                  </p>
+                </div>
+              </div>
             </div>
 
             <ol className="grid gap-2.5 sm:grid-cols-3 lg:grid-cols-1">
@@ -848,6 +854,7 @@ export function AdminDeteksi() {
 
                   {claimSuccess ? (
                     <div className="relative z-10 grid justify-items-center gap-3">
+                      <Mascot pose="cheer" size={102} />
                       <Chip tone="denim">Berhasil Diklaim</Chip>
                       <h3 className="font-display text-4xl font-black leading-none">
                         {liveDeposit?.userName ?? sentDeposit.userName} Dapat +{sentDeposit.points} Poin!

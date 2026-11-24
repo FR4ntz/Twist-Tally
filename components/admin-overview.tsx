@@ -8,6 +8,7 @@ import { useCollection, useNow } from "@/lib/hooks";
 import type { Bin, Deposit, Redemption, UserDoc } from "@/lib/types";
 import { BottleTrio } from "./bottle-art";
 import { Icon, type IconName } from "./icons";
+import { Mascot } from "./mascot";
 import { Chip, EmptyState, ErrorState, FillGauge, LinkButton, LoadingBlock, PageTitle, Points, cn } from "./ui";
 
 const SMOOTH_EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
@@ -108,8 +109,9 @@ export function AdminOverview() {
                 {binList.length} unit tempat sampah aktif menerbitkan {formatNumber(issued)} poin bagi peserta.
               </p>
             </div>
-            <div className="hidden sm:block">
-              <BottleTrio scale={0.5} />
+            <div className="hidden items-end gap-3 sm:flex">
+              <Mascot pose="idle" size={102} halo />
+              <BottleTrio scale={0.46} />
             </div>
           </div>
         </motion.div>
