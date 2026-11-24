@@ -22,17 +22,20 @@ export function totalMs(deposit: Deposit): number {
   return Math.max(1, deposit.expiresAt.toMillis() - (deposit.createdAt?.toMillis() ?? deposit.expiresAt.toMillis() - 180_000));
 }
 
-function useClaim(deposit: WithId<Deposit>) {
+function useClaim(deposit: WithId<Deposit>, onDisconnect?: () => Promise<void> | void) {
   const { user } = useAuth();
   const [busy, setBusy] = useState(false);
 
-  async function claim() {
+  async function claim(andDisconnect = false) {
     if (!user) return;
     setBusy(true);
     try {
       const result = await claimDeposit(user.uid, deposit.id);
       useArduinoSerial.getState().consumeCurrentBottle();
       useCelebration.getState().fire(`+${result.points}`, `poin masuk dari ${deposit.binName}`);
+      if (andDisconnect && onDisconnect) {
+        await onDisconnect();
+      }
     } catch (error) {
       toast.error(error instanceof ActionError ? error.message : "Klaim gagal. Coba lagi sebentar lagi.");
       setBusy(false);
@@ -42,8 +45,14 @@ function useClaim(deposit: WithId<Deposit>) {
 }
 
 /** Kartu setoran yang menunggu klaim: rincian botol, hitung mundur, dan tombol klaim. */
-export function ClaimCard({ deposit }: { deposit: WithId<Deposit> }) {
-  const { busy, claim } = useClaim(deposit);
+export function ClaimCard({
+  deposit,
+  onDisconnect,
+}: {
+  deposit: WithId<Deposit>;
+  onDisconnect?: () => Promise<void> | void;
+}) {
+  const { busy, claim } = useClaim(deposit, onDisconnect);
   const groups = Object.values(
     deposit.bottles.reduce<Record<string, { tier: string; count: number; points: number }>>((acc, b) => {
       const row = acc[b.tier] ?? { tier: b.tier, count: 0, points: 0 };
@@ -83,9 +92,22 @@ export function ClaimCard({ deposit }: { deposit: WithId<Deposit> }) {
         <span className="font-bold">Total {deposit.bottleCount} botol</span>
         <Points value={deposit.points} size={24} className="text-3xl" />
       </div>
-      <Button variant="thread" loading={busy} onClick={claim} className="mt-4 min-h-14 w-full text-lg">
-        Klaim {deposit.points} poin
-      </Button>
+      <div className="mt-4 grid gap-2">
+        {onDisconnect ? (
+          <>
+            <Button variant="thread" loading={busy} onClick={() => claim(true)} className="min-h-14 w-full text-lg">
+              Klaim {deposit.points} poin &amp; Putuskan hubungan
+            </Button>
+            <Button variant="ghost" size="sm" loading={busy} onClick={() => claim(false)} className="w-full">
+              Klaim saja (tetap terhubung)
+            </Button>
+          </>
+        ) : (
+          <Button variant="thread" loading={busy} onClick={() => claim(false)} className="min-h-14 w-full text-lg">
+            Klaim {deposit.points} poin
+          </Button>
+        )}
+      </div>
       <p className="mt-2 text-center text-sm text-ink-soft">Poin hangus bila tidak diklaim sebelum hitung mundur habis.</p>
     </motion.article>
   );
@@ -169,7 +191,7 @@ function ClaimBannerBody({ deposit, extra }: { deposit: WithId<Deposit>; extra: 
           Klaim sebelum hangus{extra > 0 ? `, +${extra} setoran lagi` : ""}
         </p>
       </div>
-      <Button variant="thread" size="sm" loading={busy} onClick={claim}>
+      <Button variant="thread" size="sm" loading={busy} onClick={() => claim(false)}>
         Klaim
       </Button>
     </div>

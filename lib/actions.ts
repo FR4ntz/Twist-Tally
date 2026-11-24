@@ -98,6 +98,13 @@ export async function disconnectFromBin(sampahId: string) {
   await updateDoc(doc(db, "bins", sampahId), { activeSession: null });
 }
 
+/** Menyinkronkan daftar botol yang sudah terdeteksi selama sesi aktif agar tampil di ponsel pengguna. */
+export async function syncSessionBasket(sampahId: string, basket: BottleReading[]) {
+  await updateDoc(doc(db, "bins", sampahId), {
+    "activeSession.basket": basket,
+  });
+}
+
 /** Menyiarkan pembacaan sensor ultrasonik di alas ke layar tempat sampah dan ponsel pengguna. */
 export async function publishLiveSensor(
   sampahId: string,
@@ -338,7 +345,7 @@ export async function createDeposit(
   heightsCm: number[],
   settings: PointsSettings,
   options?: { keepSession?: boolean },
-): Promise<{ depositId: string; userName: string; bottles: BottleReading[]; points: number }> {
+): Promise<{ depositId: string; userName: string; bottles: BottleReading[]; points: number; expiresAt: Timestamp }> {
   const session = liveSession(bin);
   if (!session) throw new ActionError("Belum ada pengguna yang tersambung ke tempat sampah ini.");
 
@@ -368,13 +375,14 @@ export async function createDeposit(
     ...(options?.keepSession
       ? {
           "activeSession.detectRequest": null,
+          "activeSession.basket": [],
         }
       : { activeSession: null }),
     pendingDeposit: { depositId, userName: session.userName, bottleCount: bottles.length, points, expiresAt },
     lastReadingAt: serverTimestamp(),
   });
   await batch.commit();
-  return { depositId, userName: session.userName, bottles, points };
+  return { depositId, userName: session.userName, bottles, points, expiresAt };
 }
 
 export type RewardInput = Pick<Reward, "name" | "description" | "category" | "pointsCost" | "stock" | "active" | "imageUrl">;

@@ -42,6 +42,7 @@ export type ActiveSession = {
   startedAt: Timestamp;
   expiresAt: Timestamp;
   detectRequest?: DetectRequest | null;
+  basket?: BottleReading[] | null;
 };
 
 /** Pembacaan langsung dari sensor ultrasonik di alas tempat sampah. */

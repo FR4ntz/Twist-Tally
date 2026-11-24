@@ -4,13 +4,21 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { QRCodeSVG } from "qrcode.react";
 import type { Timestamp } from "firebase/firestore";
-import { ActionError, createUnclaimedDeposit, expireDeposit, publishLiveSensor } from "@/lib/actions";
+import {
+  ActionError,
+  createDeposit,
+  disconnectFromBin,
+  expireDeposit,
+  liveSession,
+  publishLiveSensor,
+  syncSessionBasket,
+} from "@/lib/actions";
 import { useArduinoSerial } from "@/lib/arduino-serial";
 import { useCelebration } from "@/lib/celebrate";
 import { fillPercent, formatNumber } from "@/lib/format";
 import { useCollection, useDoc, useNow, useOrigin } from "@/lib/hooks";
-import { readBottle, sortTiers, tierForHeight, withDefaults } from "@/lib/points";
-import type { Bin, Deposit, PointsSettings } from "@/lib/types";
+import { readBottle, sortTiers, sumPoints, tierForHeight, withDefaults } from "@/lib/points";
+import type { Bin, BottleReading, Deposit, PointsSettings } from "@/lib/types";
 import { BinArt } from "./bin-art";
 import { Bottle, BottleTrio } from "./bottle-art";
 import { Burst } from "./burst";
@@ -47,20 +55,18 @@ export function AdminDeteksi() {
   const [demoMode, setDemoMode] = useState(false);
   const [demoHeightCm, setDemoHeightCm] = useState<number | null>(null);
   const [scanning, setScanning] = useState(false);
-  const [detected, setDetected] = useState<{
+  const [basket, setBasket] = useState<BottleReading[]>([]);
+  const [sending, setSending] = useState(false);
+  const [sentDeposit, setSentDeposit] = useState<{
     depositId: string;
-    heightCm: number;
-    tier: string;
+    userName: string;
     points: number;
+    bottleCount: number;
     expiresAt: Timestamp;
     nonce: number;
   } | null>(null);
   const [drop, setDrop] = useState<{ id: number } | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
-
-  const ticketDoc = useDoc<Deposit>(detected ? `deposits/${detected.depositId}` : null);
-  const celebratedTicketRef = useRef<string | null>(null);
-  const expiredTicketRef = useRef<string | null>(null);
 
   const serialStatus = useArduinoSerial((s) => s.status);
   const serialLog = useArduinoSerial((s) => s.log);
@@ -75,6 +81,9 @@ export function AdminDeteksi() {
   const calibrateEmpty = useArduinoSerial((s) => s.calibrateEmpty);
   const clearCalibration = useArduinoSerial((s) => s.clearCalibration);
 
+  const sentDoc = useDoc<Deposit>(sentDeposit ? `deposits/${sentDeposit.depositId}` : null);
+  const celebratedRef = useRef<string | null>(null);
+  const expiredRef = useRef<string | null>(null);
   const lastBroadcastRef = useRef<{ at: number; height: number | null }>({ at: 0, height: null });
   const scanTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -90,6 +99,7 @@ export function AdminDeteksi() {
 
   const bin = bins.data?.find((b) => b.id === binId) ?? bins.data?.[0] ?? null;
   const activeBinId = bin?.id ?? null;
+  const session = bin ? liveSession(bin, now) : null;
 
   const effectiveHeight = demoMode ? demoHeightCm : liveHeightCm;
   const effectiveDistance = demoMode
@@ -98,29 +108,29 @@ export function AdminDeteksi() {
       : null
     : liveDistanceCm;
 
-  const liveTicket = ticketDoc.data;
-  const ticketClaimed = liveTicket?.status === "claimed";
-  const ticketExpired =
-    detected !== null &&
-    (liveTicket?.status === "expired" ||
-      (!ticketClaimed && (liveTicket?.expiresAt ?? detected.expiresAt).toMillis() <= now));
+  const liveDeposit = sentDoc.data;
+  const claimSuccess = liveDeposit?.status === "claimed";
+  const claimExpired =
+    sentDeposit !== null &&
+    (liveDeposit?.status === "expired" ||
+      (!claimSuccess && (liveDeposit?.expiresAt ?? sentDeposit.expiresAt).toMillis() <= now));
 
   useEffect(() => {
-    if (!detected || !liveTicket) return;
-    if (liveTicket.status === "claimed" && celebratedTicketRef.current !== detected.depositId) {
-      celebratedTicketRef.current = detected.depositId;
+    if (!sentDeposit || !liveDeposit) return;
+    if (liveDeposit.status === "claimed" && celebratedRef.current !== sentDeposit.depositId) {
+      celebratedRef.current = sentDeposit.depositId;
       useCelebration
         .getState()
-        .fire(`+${liveTicket.points}`, `diklaim oleh ${liveTicket.userName ?? "pengunjung"}`);
+        .fire(`+${liveDeposit.points}`, `diklaim oleh ${liveDeposit.userName ?? sentDeposit.userName}`);
     }
-  }, [detected, liveTicket]);
+  }, [sentDeposit, liveDeposit]);
 
   useEffect(() => {
-    if (!detected || !ticketExpired || ticketClaimed) return;
-    if (expiredTicketRef.current === detected.depositId) return;
-    expiredTicketRef.current = detected.depositId;
-    expireDeposit(detected.depositId).catch(() => {});
-  }, [detected, ticketExpired, ticketClaimed]);
+    if (!sentDeposit || !claimExpired || claimSuccess) return;
+    if (expiredRef.current === sentDeposit.depositId) return;
+    expiredRef.current = sentDeposit.depositId;
+    expireDeposit(sentDeposit.depositId).catch(() => {});
+  }, [sentDeposit, claimExpired, claimSuccess]);
 
   useEffect(() => {
     if (!activeBinId || serialStatus !== "connected" || demoMode) return;
@@ -182,7 +192,7 @@ export function AdminDeteksi() {
             </LinkButton>
           }
         >
-          Daftarkan minimal satu tempat sampah dulu agar hasil deteksi ukuran botol bisa dibuatkan QR dan dicatat.
+          Daftarkan minimal satu tempat sampah dulu agar QR sambungan dan hasil deteksi botol bisa dipakai.
         </EmptyState>
       </div>
     );
@@ -199,7 +209,8 @@ export function AdminDeteksi() {
     activeHeight !== null ? Math.min(100, Math.max(8, (clampedDisplay / MAX_DISPLAY_CM) * 100)) : 0;
   const percent = fillPercent(bin.bottleCount, bin.capacityBottles);
 
-  const flowStep = detected ? 3 : scanning || hasLiveBottle ? 2 : 1;
+  const basketPoints = sumPoints(basket);
+  const flowStep = sentDeposit ? 3 : session ? 2 : 1;
 
   async function toggleFullscreen() {
     try {
@@ -213,49 +224,86 @@ export function AdminDeteksi() {
     }
   }
 
-  async function handleDisconnect() {
+  async function handleDisconnectSerial() {
     await disconnectSerial();
     if (activeBinId) publishLiveSensor(activeBinId, null).catch(() => {});
   }
 
-  function triggerScan() {
+  async function handleDisconnectVisitor() {
+    if (!bin) return;
+    try {
+      await disconnectFromBin(bin.id);
+      setBasket([]);
+      setSentDeposit(null);
+      setDemoHeightCm(null);
+      consumeCurrentBottle(false);
+      toast.ok("Hubungan pengunjung diputus. QR terbuka kembali untuk pengunjung berikutnya.");
+    } catch {
+      toast.error("Gagal memutus hubungan. Coba lagi.");
+    }
+  }
+
+  function addDetectedBottle() {
     if (!bin || activeHeight === null || activeHeight < 3 || scanning) return;
     setScanning(true);
     if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(25);
     const captured = Math.round(activeHeight * 10) / 10;
     if (scanTimerRef.current) clearTimeout(scanTimerRef.current);
-    scanTimerRef.current = setTimeout(async () => {
-      try {
-        const ticket = await createUnclaimedDeposit(bin, [captured], settings);
-        const res = readBottle(captured, tiers);
-        if (!demoMode) consumeCurrentBottle(false);
-        setDemoHeightCm(null);
-        setDrop((d) => ({ id: (d?.id ?? 0) + 1 }));
-        setDetected({
-          depositId: ticket.depositId,
-          heightCm: captured,
-          tier: res.tier,
-          points: ticket.points,
-          expiresAt: ticket.expiresAt,
-          nonce: Date.now(),
-        });
-        toast.ok(`QR siap diklaim: ${captured.toFixed(1)} cm (${res.tier}, +${ticket.points} poin).`);
-      } catch (error) {
-        toast.error(error instanceof ActionError ? error.message : "Gagal membuat tiket QR. Coba lagi.");
-      } finally {
-        setScanning(false);
+    scanTimerRef.current = setTimeout(() => {
+      setScanning(false);
+      const item = readBottle(captured, tiers);
+      const nextBasket = [...basket, item];
+      setBasket(nextBasket);
+      setSentDeposit(null);
+      setDrop((d) => ({ id: (d?.id ?? 0) + 1 }));
+      if (!demoMode) consumeCurrentBottle(false);
+      setDemoHeightCm(null);
+      if (session) {
+        syncSessionBasket(bin.id, nextBasket).catch(() => {});
       }
+      toast.ok(`Botol #${nextBasket.length} ditambahkan: ${captured.toFixed(1)} cm (${item.tier}, +${item.points} poin).`);
     }, 520);
+  }
+
+  function removeBasketItem(index: number) {
+    if (!bin) return;
+    const nextBasket = basket.filter((_, i) => i !== index);
+    setBasket(nextBasket);
+    if (session) {
+      syncSessionBasket(bin.id, nextBasket).catch(() => {});
+    }
+  }
+
+  async function sendBasketToUser() {
+    if (!bin || !session || basket.length === 0 || sending) return;
+    setSending(true);
+    try {
+      const heights = basket.map((b) => b.heightCm);
+      const result = await createDeposit(bin, heights, settings, { keepSession: true });
+      setSentDeposit({
+        depositId: result.depositId,
+        userName: result.userName,
+        points: result.points,
+        bottleCount: result.bottles.length,
+        expiresAt: result.expiresAt,
+        nonce: Date.now(),
+      });
+      setBasket([]);
+      setDrop((d) => ({ id: (d?.id ?? 0) + 1 }));
+      toast.ok(`${result.points} poin dari ${result.bottles.length} botol dikirim ke ${result.userName} untuk diklaim!`);
+    } catch (error) {
+      toast.error(error instanceof ActionError ? error.message : "Gagal mengirim poin ke pengunjung.");
+    } finally {
+      setSending(false);
+    }
   }
 
   return (
     <div className="min-h-dvh bg-paper text-ink">
       <CelebrationOverlay />
 
-      {/* Pita gingham khas Twist & Tally di tepi atas */}
       <div className="gingham h-3 w-full border-b-2 border-ink" aria-hidden="true" />
 
-      {/* Bar navigasi panggung penuh */}
       <header className="sticky top-0 z-30 border-b-2 border-dashed border-stitch bg-paper/92 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-2.5 sm:px-6 lg:px-8">
           <div className="flex flex-wrap items-center gap-3">
@@ -273,7 +321,8 @@ export function AdminDeteksi() {
               onChange={(e) => {
                 if (activeBinId) publishLiveSensor(activeBinId, null).catch(() => {});
                 setBinId(e.target.value);
-                setDetected(null);
+                setBasket([]);
+                setSentDeposit(null);
               }}
               className="min-h-11 rounded-[10px] border-2 border-edge bg-card px-3 text-sm font-bold text-ink"
             >
@@ -285,7 +334,7 @@ export function AdminDeteksi() {
             </select>
 
             {serialStatus === "connected" ? (
-              <Button variant="ghost" size="sm" onClick={handleDisconnect}>
+              <Button variant="ghost" size="sm" onClick={handleDisconnectSerial}>
                 Putuskan USB
               </Button>
             ) : (
@@ -319,7 +368,7 @@ export function AdminDeteksi() {
       </header>
 
       <main className="mx-auto grid max-w-7xl gap-7 px-4 pb-16 pt-6 sm:px-6 lg:px-8">
-        {/* Hero Judul & Strip Alur Animasi Pameran */}
+        {/* Hero Judul & Alur 3 Langkah: Scan QR -> Deteksi Beberapa Botol -> Klaim & Putus */}
         <motion.section
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
@@ -333,11 +382,7 @@ export function AdminDeteksi() {
                 <span className="inline-flex items-center gap-2 rounded-chip bg-ink px-3 py-1 text-xs font-black uppercase tracking-wider text-paper">
                   <motion.span
                     aria-hidden="true"
-                    animate={
-                      reduceMotion
-                        ? undefined
-                        : { scale: [1, 1.45, 1], opacity: [1, 0.45, 1] }
-                    }
+                    animate={reduceMotion ? undefined : { scale: [1, 1.45, 1], opacity: [1, 0.45, 1] }}
                     transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
                     className={cn(
                       "size-2.5 rounded-full",
@@ -357,17 +402,31 @@ export function AdminDeteksi() {
                 Deteksi Ukuran Botol Pintar
               </h1>
               <p className="mt-3 max-w-xl text-base text-ink-soft sm:text-lg">
-                Letakkan botol plastik di atas alas ukur. Sistem membaca tinggi botol secara otomatis, menentukan kategori
-                poin, dan menampilkan QR klaim untuk pengunjung.
+                Scan QR untuk menghubungkan akunmu, setor 1 atau beberapa botol sekaligus di atas alas ukur, lalu klaim
+                poin dan putuskan hubungan saat selesai.
               </p>
             </div>
 
-            {/* 3 Langkah Interaktif yang menyorot tahap aktif */}
             <ol className="grid gap-2.5 sm:grid-cols-3 lg:grid-cols-1">
               {[
-                { step: 1, title: "1. Taruh Botol", desc: "Letakkan botol berdiri di alas sensor.", icon: "bottle" as const },
-                { step: 2, title: "2. Ukur Tinggi", desc: "Gelombang ultrasonik membaca cm & kategori.", icon: "scan" as const },
-                { step: 3, title: "3. Scan QR & Poin", desc: "Pindai QR untuk klaim poin ke akunmu.", icon: "tag" as const },
+                {
+                  step: 1,
+                  title: "1. Scan QR Akun",
+                  desc: "Pindai QR untuk mengunci sesi atas namamu.",
+                  icon: "scan" as const,
+                },
+                {
+                  step: 2,
+                  title: "2. Deteksi (>1 Botol)",
+                  desc: "Ukur satu per satu botol hingga selesai.",
+                  icon: "bottle" as const,
+                },
+                {
+                  step: 3,
+                  title: "3. Klaim & Putus",
+                  desc: "Klaim total poin lalu lepas koneksi stasiun.",
+                  icon: "tag" as const,
+                },
               ].map((item) => {
                 const isCurrent = flowStep === item.step;
                 const isDone = flowStep > item.step;
@@ -405,8 +464,8 @@ export function AdminDeteksi() {
         </motion.section>
 
         {/* Panggung Utama 2 Kolom */}
-        <div className="grid items-start gap-6 lg:grid-cols-[1.25fr_1fr]">
-          {/* Kiri: Ruang Ukur Ultrasonik Beranimasi */}
+        <div className="grid items-start gap-6 lg:grid-cols-[1.2fr_1fr]">
+          {/* Kiri: Ruang Ukur Ultrasonik */}
           <section className="patch grid gap-5 p-5 sm:p-7" aria-labelledby="alas-stage">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="min-w-0">
@@ -415,19 +474,15 @@ export function AdminDeteksi() {
                 </h2>
                 <p role="status" className="text-xs font-bold text-ink-soft">
                   {demoMode
-                    ? "Mode demo aktif: atur tinggi botol simulasi di bawah atau tekan tombol deteksi."
+                    ? "Mode demo aktif: atur tinggi botol simulasi di bawah lalu tambahkan ke daftar."
                     : serialLog}
                 </p>
                 {!demoMode && serialStatus === "connected" && lastRawLine && (
-                  <p className="mt-1 truncate font-mono text-[11px] font-bold text-denim">
-                    Serial: {lastRawLine}
-                  </p>
+                  <p className="mt-1 truncate font-mono text-[11px] font-bold text-denim">Serial: {lastRawLine}</p>
                 )}
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                {effectiveDistance !== null && (
-                  <Chip tone="denim">Pantul {effectiveDistance.toFixed(1)} cm</Chip>
-                )}
+                {effectiveDistance !== null && <Chip tone="denim">Pantul {effectiveDistance.toFixed(1)} cm</Chip>}
                 {!demoMode && serialStatus === "connected" && liveDistanceCm !== null && (
                   emptyDistanceCm === null ? (
                     <Button variant="ghost" size="sm" onClick={calibrateEmpty}>
@@ -444,7 +499,6 @@ export function AdminDeteksi() {
 
             {/* Chamber Sensor */}
             <div className="relative overflow-hidden rounded-[18px] border-2 border-ink bg-paper-deep/90 px-4 pb-5 pt-6">
-              {/* Kepala Transduser HC-SR04 + Gelombang Sonar */}
               <div className="mx-auto flex w-fit flex-col items-center">
                 <div className="flex items-center gap-3 rounded-[12px] border-2 border-ink bg-ink px-4 py-2 text-paper shadow-[0_3px_0_var(--thread)]">
                   <motion.span
@@ -470,7 +524,6 @@ export function AdminDeteksi() {
                   />
                 </div>
 
-                {/* Gelombang sonar di bawah sensor */}
                 <div className="relative flex h-8 w-32 items-start justify-center overflow-visible" aria-hidden="true">
                   {(scanning || (!reduceMotion && (hasLiveBottle || serialStatus === "connected"))) && (
                     <>
@@ -508,7 +561,6 @@ export function AdminDeteksi() {
                 </div>
               </div>
 
-              {/* Garis Sapu Laser saat tombol Deteksi ditekan */}
               <AnimatePresence>
                 {scanning && (
                   <motion.div
@@ -522,7 +574,6 @@ export function AdminDeteksi() {
                 )}
               </AnimatePresence>
 
-              {/* Area Botol + Penggaris Tinggi */}
               <div className="relative mt-2 grid h-72 grid-cols-[1fr_5rem] items-end gap-3">
                 <div className="relative flex h-full flex-col items-center justify-end">
                   <AnimatePresence mode="wait">
@@ -535,7 +586,6 @@ export function AdminDeteksi() {
                         transition={{ type: "spring", stiffness: 240, damping: 20 }}
                         className="relative flex flex-col items-center"
                       >
-                        {/* Lencana tinggi live melayang di atas tutup botol */}
                         <motion.div
                           layout
                           className="mb-1.5 flex items-center gap-1.5 rounded-[10px] border-2 border-ink bg-thread px-3 py-1 font-mono text-sm font-black text-thread-ink shadow-[0_2px_0_var(--ink)]"
@@ -575,7 +625,6 @@ export function AdminDeteksi() {
                     )}
                   </AnimatePresence>
 
-                  {/* Alas Timbang Denim */}
                   <div
                     className="mt-1.5 h-4 w-52 rounded-full border-2 border-ink bg-denim shadow-[0_4px_0_var(--ink)]"
                     aria-hidden="true"
@@ -584,7 +633,6 @@ export function AdminDeteksi() {
                   </div>
                 </div>
 
-                {/* Skala Penggaris Vertikal */}
                 <div
                   className="relative h-full border-l-2 border-dashed border-stitch pl-2.5 text-xs font-bold text-ink-soft"
                   aria-hidden="true"
@@ -636,25 +684,21 @@ export function AdminDeteksi() {
               </div>
             </div>
 
-            {/* Tombol Utama Deteksi */}
             <Button
               variant="thread"
               loading={scanning}
               disabled={activeHeight === null}
-              onClick={triggerScan}
+              onClick={addDetectedBottle}
               className="min-h-16 w-full text-xl shadow-[0_4px_0_var(--ink)]"
             >
-              <Icon name="scan" size={24} />
-              {scanning ? "Memindai Tinggi Botol..." : "Deteksi Ukuran Botol"}
+              <Icon name="plus" size={22} />
+              {scanning ? "Mengukur Botol..." : "Deteksi & Tambah Botol"}
             </Button>
 
-            {/* Kontrol Cepat Mode Demo (hanya tampil jika Mode Demo diaktifkan) */}
             {demoMode && (
               <div className="grid gap-3 rounded-[14px] border-2 border-dashed border-denim bg-denim-soft/65 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-xs font-black uppercase tracking-wider text-ink">
-                    Kontrol Simulasi Pameran
-                  </p>
+                  <p className="text-xs font-black uppercase tracking-wider text-ink">Kontrol Simulasi Pameran</p>
                   <button
                     type="button"
                     onClick={() => setDemoHeightCm(null)}
@@ -694,12 +738,11 @@ export function AdminDeteksi() {
               </div>
             )}
 
-            {/* Panduan Kategori Ukuran Botol dengan Ikon Proporsional */}
             <div className="grid gap-2 border-t-2 border-dashed border-stitch pt-4">
               <p className="text-xs font-bold uppercase tracking-wider text-ink-soft">Kategori Poin Botol</p>
               <ul className="grid grid-cols-3 gap-2.5">
                 {tiers.map((tier, idx) => {
-                  const activeMatch = liveTier?.label === tier.label || detected?.tier === tier.label;
+                  const activeMatch = liveTier?.label === tier.label;
                   const rangeText =
                     tier.upToCm === null
                       ? `> ${tiers[idx - 1]?.upToCm ?? 0} cm`
@@ -732,155 +775,208 @@ export function AdminDeteksi() {
             </div>
           </section>
 
-          {/* Kanan: Status Tiket QR Sekali Pakai & Tempat Sampah Pintar */}
+          {/* Kanan: QR Hubungkan Akun -> Daftar Botol Terdeteksi -> Kirim Klaim -> Putuskan Hubungan */}
           <section className="grid gap-5" aria-live="polite" aria-labelledby="hasil-pameran">
             <h2 id="hasil-pameran" className="sr-only">
-              Hasil deteksi dan QR klaim
+              Koneksi akun, daftar botol, dan klaim poin
             </h2>
 
-            {/* Kartu status tiket QR (menggantikan sistem sambungan tempat sampah yang membingungkan) */}
-            <div
-              className={cn(
-                "patch flex items-center justify-between gap-3 p-4 sm:p-5",
-                ticketClaimed ? "patch-denim" : "patch-linen",
-              )}
-            >
-              {detected && ticketClaimed && liveTicket ? (
-                <>
+            {/* Kartu 1: Status Akun Terhubung atau QR Koneksi */}
+            {session ? (
+              <div className="patch patch-denim grid gap-4 p-5">
+                <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <Chip tone="thread">Tiket QR Terklaim</Chip>
-                    <p className="mt-1.5 truncate font-display text-3xl font-black leading-none">
-                      {liveTicket.userName ?? "Pengunjung"}
-                    </p>
+                    <Chip tone="thread">Akun Terhubung (Terkunci)</Chip>
+                    <p className="mt-2 truncate font-display text-4xl font-black leading-none">{session.userName}</p>
                     <p className="mt-1 text-xs text-on-fill/85">
-                      Poin sudah masuk. QR otomatis hangus untuk pengguna lain.
-                    </p>
-                  </div>
-                  <span className="grid size-12 shrink-0 place-items-center rounded-full bg-thread text-thread-ink">
-                    <Icon name="check" size={24} />
-                  </span>
-                </>
-              ) : detected && ticketExpired ? (
-                <div className="flex items-center gap-3">
-                  <span className="grid size-11 shrink-0 place-items-center rounded-[12px] bg-danger-soft text-danger">
-                    <Icon name="clock" size={22} />
-                  </span>
-                  <div>
-                    <p className="font-display text-xl font-black leading-tight text-danger">QR Sudah Hangus</p>
-                    <p className="text-xs text-ink-soft">
-                      Waktu klaim habis sebelum dipindai. Deteksi botol lagi untuk membuat QR baru.
-                    </p>
-                  </div>
-                </div>
-              ) : detected ? (
-                <>
-                  <div className="min-w-0">
-                    <Chip tone="thread">QR Aktif 1x Klaim</Chip>
-                    <p className="mt-1.5 font-display text-2xl font-black leading-tight">Menunggu Scan Pengunjung</p>
-                    <p className="mt-0.5 text-xs text-ink-soft">
-                      Hanya berlaku untuk penemu pertama sebelum hitung mundur habis.
+                      Hanya {session.userName} yang dapat menerima dan mengklaim poin selama sesi ini aktif.
                     </p>
                   </div>
                   <div className="rounded-full bg-card p-0.5 text-ink">
                     <Countdown
-                      expiresAt={liveTicket?.expiresAt ?? detected.expiresAt}
-                      totalMs={settings.depositExpiryMinutes * 60_000}
-                      size={56}
-                      label="Sisa waktu klaim QR"
+                      expiresAt={session.expiresAt}
+                      totalMs={settings.sessionExpiryMinutes * 60_000}
+                      size={58}
+                      label="Sisa waktu sesi"
                     />
                   </div>
-                </>
-              ) : (
-                <div className="flex items-center gap-3">
-                  <span className="grid size-11 shrink-0 place-items-center rounded-[12px] bg-card text-ink">
-                    <Icon name="scan" size={22} />
-                  </span>
-                  <div>
-                    <p className="font-display text-xl font-black leading-tight">Cukup Scan QR &amp; Klaim</p>
-                    <p className="text-xs text-ink-soft">
-                      Tidak perlu sambung tempat sampah dulu. Deteksi botol akan membuat QR 1x klaim berbatas waktu.
-                    </p>
-                  </div>
                 </div>
-              )}
-            </div>
-
-            {/* Kartu Hasil Terdeteksi atau Showcase Bin Interaktif */}
-            <AnimatePresence mode="wait">
-              {detected ? (
-                <motion.div
-                  key={detected.nonce}
-                  initial={{ opacity: 0, y: 18, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -12, scale: 0.96 }}
-                  transition={{ type: "spring", stiffness: 250, damping: 20 }}
-                  className="patch relative grid justify-items-center gap-4 overflow-hidden border-2 border-ink p-6 text-center"
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleDisconnectVisitor}
+                  className="w-full border-on-fill/40 text-on-fill hover:bg-on-fill/15"
                 >
-                  {ticketClaimed && <Burst count={16} />}
+                  Putuskan Hubungan ({session.userName})
+                </Button>
+              </div>
+            ) : (
+              <div className="patch grid justify-items-center gap-3 border-2 border-ink p-5 text-center">
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <Chip tone="thread">Langkah 1 · Hubungkan Akun</Chip>
+                  <Chip tone="denim">{bin.sampahId}</Chip>
+                </div>
+                <h3 className="font-display text-3xl font-black leading-none">Scan QR untuk Mulai</h3>
+                <div className="rounded-[16px] border-2 border-ink bg-white p-3.5 shadow-[0_4px_0_var(--thread)]">
+                  <QRCodeSVG
+                    value={`${origin}/hubung?sampah=${bin.sampahId}`}
+                    size={190}
+                    level="M"
+                    title={`QR hubungkan ke stasiun ${bin.sampahId}`}
+                  />
+                </div>
+                <p className="max-w-xs text-xs text-ink-soft">
+                  Buka menu <strong>Scan QR</strong> di aplikasi Twist &amp; Tally lalu arahkan ke QR ini. Orang lain tidak
+                  bisa masuk selama akunmu masih terhubung.
+                </p>
+              </div>
+            )}
 
-                  <div className="relative z-10 flex flex-wrap items-center justify-center gap-2">
-                    <Chip tone="denim">Hasil Deteksi Sensor</Chip>
-                    <Chip tone="thread">{detected.tier}</Chip>
-                  </div>
+            {/* Kartu 2: Status Klaim Aktif, Keranjang Multi-Botol, atau Showcase Tempat Sampah */}
+            <AnimatePresence mode="wait">
+              {sentDeposit ? (
+                <motion.div
+                  key={sentDeposit.nonce}
+                  initial={{ opacity: 0, y: 14, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="patch relative grid gap-4 overflow-hidden border-2 border-ink p-6 text-center"
+                >
+                  {claimSuccess && <Burst count={16} />}
 
-                  <div className="relative z-10">
-                    <p className="font-display text-6xl font-black leading-none tabular-nums">
-                      {detected.heightCm.toFixed(1)} cm
-                    </p>
-                    <div className="mt-2 flex justify-center">
-                      <Points value={detected.points} size={26} className="text-3xl" />
-                    </div>
-                  </div>
-
-                  {ticketClaimed ? (
-                    <div className="relative z-10 grid w-full gap-2 rounded-[16px] border-2 border-fill bg-denim-soft p-5">
-                      <p className="font-display text-3xl font-black leading-none text-ink">
-                        Diklaim oleh {liveTicket?.userName ?? "Pengunjung"}
-                      </p>
+                  {claimSuccess ? (
+                    <div className="relative z-10 grid justify-items-center gap-3">
+                      <Chip tone="denim">Berhasil Diklaim</Chip>
+                      <h3 className="font-display text-4xl font-black leading-none">
+                        {liveDeposit?.userName ?? sentDeposit.userName} Dapat +{sentDeposit.points} Poin!
+                      </h3>
                       <p className="text-sm text-ink-soft">
-                        QR ini sudah dipakai dan otomatis terkunci sehingga orang lain tidak dapat mengklaimnya lagi.
+                        {sentDeposit.bottleCount} botol telah tercatat permanen. Putuskan hubungan jika pengunjung sudah
+                        selesai, atau deteksi botol tambahan lagi.
                       </p>
+                      <div className="grid w-full gap-2 pt-2">
+                        {session && (
+                          <Button variant="thread" onClick={handleDisconnectVisitor} className="min-h-12 w-full">
+                            Putuskan Hubungan (Selesai)
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSentDeposit(null)}
+                          className="w-full"
+                        >
+                          {session ? `Tambah Botol Lagi untuk ${session.userName}` : "Siap untuk Pengunjung Berikutnya"}
+                        </Button>
+                      </div>
                     </div>
-                  ) : ticketExpired ? (
-                    <div className="relative z-10 grid w-full gap-2 rounded-[16px] border-2 border-danger bg-danger-soft p-5">
-                      <p className="font-display text-3xl font-black leading-none text-danger">QR Sudah Hangus</p>
+                  ) : claimExpired ? (
+                    <div className="relative z-10 grid justify-items-center gap-3">
+                      <Chip tone="danger">Waktu Klaim Habis</Chip>
+                      <h3 className="font-display text-3xl font-black leading-none text-danger">Poin Hangus</h3>
                       <p className="text-sm text-ink-soft">
-                        Batas waktu klaim {settings.depositExpiryMinutes} menit telah berakhir. Tekan tombol di bawah
-                        untuk mendeteksi botol berikutnya.
+                        Pengunjung belum menekan klaim dalam {settings.depositExpiryMinutes} menit.
                       </p>
+                      <Button variant="ghost" size="sm" onClick={() => setSentDeposit(null)} className="w-full">
+                        Tutup &amp; Lanjutkan
+                      </Button>
                     </div>
                   ) : (
-                    <>
-                      <div className="relative z-10 rounded-[18px] border-2 border-ink bg-white p-4 shadow-[0_4px_0_var(--thread)]">
-                        <QRCodeSVG
-                          value={`${origin}/hubung?tiket=${detected.depositId}`}
-                          size={220}
-                          level="M"
-                          title={`QR klaim 1x pakai ${detected.heightCm.toFixed(1)} cm`}
+                    <div className="relative z-10 grid justify-items-center gap-3">
+                      <div className="flex w-full items-center justify-between gap-3">
+                        <div className="text-left">
+                          <Chip tone="thread">Menunggu Klaim</Chip>
+                          <p className="mt-1.5 font-display text-3xl font-black leading-none">
+                            {sentDeposit.userName}
+                          </p>
+                        </div>
+                        <Countdown
+                          expiresAt={liveDeposit?.expiresAt ?? sentDeposit.expiresAt}
+                          totalMs={settings.depositExpiryMinutes * 60_000}
+                          size={58}
+                          label="Batas waktu klaim"
                         />
                       </div>
-
-                      <p className="relative z-10 max-w-xs text-sm text-ink-soft">
-                        Scan QR ini dari menu <strong>Scan QR</strong> lalu tekan <strong>Klaim Poin</strong> sebelum
-                        waktu habis ({settings.depositExpiryMinutes} menit).
+                      <div className="w-full rounded-[14px] border-2 border-dashed border-stitch bg-paper-deep/70 p-4">
+                        <p className="text-xs font-bold uppercase tracking-wider text-ink-soft">
+                          {sentDeposit.bottleCount} botol terkirim ke ponsel {sentDeposit.userName}
+                        </p>
+                        <div className="mt-1 flex justify-center">
+                          <Points value={sentDeposit.points} size={26} className="text-3xl" />
+                        </div>
+                      </div>
+                      <p className="text-xs text-ink-soft">
+                        Minta <strong>{sentDeposit.userName}</strong> menekan tombol <strong>Klaim</strong> di layar ponselnya.
                       </p>
-                    </>
+                    </div>
+                  )}
+                </motion.div>
+              ) : basket.length > 0 ? (
+                <motion.div
+                  key="basket-card"
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  className="patch grid gap-4 border-2 border-ink p-5 sm:p-6"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <Chip tone="denim">Keranjang Setoran ({basket.length} botol)</Chip>
+                      <h3 className="mt-1.5 font-display text-3xl font-black leading-none">Daftar Botol Terdeteksi</h3>
+                    </div>
+                    <Points value={basketPoints} size={22} className="text-2xl" />
+                  </div>
+
+                  <ul className="grid max-h-60 gap-2 overflow-y-auto pr-1">
+                    {basket.map((item, idx) => (
+                      <li
+                        key={`${item.heightCm}-${idx}`}
+                        className="flex items-center justify-between gap-3 rounded-[10px] border-2 border-dashed border-stitch bg-paper-deep/55 px-3 py-2 text-sm"
+                      >
+                        <span>
+                          <strong>Botol #{idx + 1}</strong> · {item.heightCm.toFixed(1)} cm ({item.tier})
+                        </span>
+                        <span className="flex items-center gap-2">
+                          <span className="font-black text-denim">+{item.points}p</span>
+                          <button
+                            type="button"
+                            aria-label={`Hapus botol ${idx + 1}`}
+                            onClick={() => removeBasketItem(idx)}
+                            className="grid size-7 place-items-center rounded-[6px] text-ink-soft hover:bg-danger-soft hover:text-danger"
+                          >
+                            <Icon name="close" size={14} />
+                          </button>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  {session ? (
+                    <Button
+                      variant="thread"
+                      loading={sending}
+                      onClick={sendBasketToUser}
+                      className="min-h-14 w-full text-base shadow-[0_3px_0_var(--ink)]"
+                    >
+                      Kirim Klaim (+{basketPoints} Poin) ke {session.userName}
+                    </Button>
+                  ) : (
+                    <p className="rounded-[10px] border-2 border-dashed border-thread bg-paper-deep px-3 py-2.5 text-center text-xs font-bold text-ink">
+                      Scan QR di atas dulu agar akun pengunjung terhubung untuk mengklaim {basket.length} botol ini.
+                    </p>
                   )}
 
-                  <div className="relative z-10 grid w-full gap-2">
-                    <Button
-                      variant={ticketClaimed || ticketExpired ? "thread" : "ghost"}
-                      size={ticketClaimed || ticketExpired ? "md" : "sm"}
-                      onClick={() => {
-                        setDetected(null);
-                        setDemoHeightCm(null);
-                        consumeCurrentBottle(false);
-                      }}
-                      className="w-full"
-                    >
-                      Scan Botol Berikutnya
-                    </Button>
-                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setBasket([]);
+                      if (session) syncSessionBasket(bin.id, []).catch(() => {});
+                    }}
+                    className="w-full"
+                  >
+                    Kosongkan Daftar Botol
+                  </Button>
                 </motion.div>
               ) : (
                 <motion.div
@@ -894,15 +990,18 @@ export function AdminDeteksi() {
                     animate={reduceMotion ? undefined : { y: [0, -4, 0] }}
                     transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }}
                   >
-                    <BinArt percent={percent} drop={drop} className="w-44" />
+                    <BinArt percent={percent} drop={drop} className="w-40" />
                   </motion.div>
 
                   <div className="w-full">
                     <Chip tone="denim">{formatNumber(bin.totalBottles)} botol terkumpul di unit ini</Chip>
-                    <p className="mt-2 font-display text-3xl font-black leading-none">Menunggu Hasil Deteksi</p>
+                    <p className="mt-2 font-display text-3xl font-black leading-none">
+                      {session ? `Siap Deteksi Botol ${session.userName}` : "Menunggu Pengunjung Scan QR"}
+                    </p>
                     <p className="mt-1.5 text-sm text-ink-soft">
-                      Taruh botol di alas sensor sebelah kiri lalu tekan <strong>Deteksi Ukuran Botol</strong> untuk
-                      memunculkan QR klaim di layar ini.
+                      {session
+                        ? "Taruh botol di atas alas lalu tekan Deteksi & Tambah Botol. Kamu bisa menambahkan lebih dari 1 botol sebelum mengirim poin."
+                        : "Setelah akun terhubung lewat QR di atas, setiap botol yang dideteksi akan masuk ke daftar setor pengguna."}
                     </p>
                   </div>
 
