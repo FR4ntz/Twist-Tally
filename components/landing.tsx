@@ -184,23 +184,23 @@ export function Landing() {
           </motion.div>
         )}
 
-        <div className="grid gap-8 lg:grid-cols-[1fr_1.35fr] lg:items-center">
+        <div className="grid gap-8 lg:grid-cols-[1.05fr_1.25fr] lg:items-center">
           <motion.div
             initial={{ opacity: 0, y: 14 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.25 }}
             transition={{ duration: 0.4, ease: SMOOTH_EASE }}
-            className="grid gap-5"
+            className="relative grid gap-2"
           >
-            <div>
+            <div className="patch relative z-20 p-5 sm:p-6">
               <h2 className="text-4xl sm:text-5xl">Dari botol sampai poin</h2>
-              <p className="mt-3 max-w-sm text-ink-soft">
+              <p className="mt-2.5 max-w-md text-ink-soft">
                 Alur ringkas dari tempat sampah ke ponselmu, lalu botol PET diproses menjadi produk daur ulang baru.
               </p>
             </div>
-            <div className="flex flex-wrap items-end justify-center gap-5 py-2 sm:justify-start">
-              <Mascot pose="idle" size={168} />
-              <BottleTrio scale={0.76} />
+            <div className="relative -mt-8 flex items-end justify-center gap-2 px-2 pt-4 sm:justify-start">
+              <Mascot pose="idle" size={290} className="z-0 -mr-6 shrink-0" />
+              <BottleTrio scale={0.78} className="relative z-10 pb-2" />
             </div>
           </motion.div>
 
