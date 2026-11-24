@@ -32,11 +32,12 @@ export function ConnectView() {
   if (ticketId) return <TicketClaimView ticketId={ticketId} />;
 
   const sampahId = extractSampahId(searchParams.get("sampah") ?? "");
-  return <BinConnectView sampahId={sampahId} />;
+  const scanNonce = searchParams.get("scan");
+  return <BinConnectView sampahId={sampahId} scanNonce={scanNonce} />;
 }
 
-/** Alur utama: scan QR stasiun -> otomatis terhubung -> pantau deteksi multi-botol -> klaim -> putuskan hubungan. */
-function BinConnectView({ sampahId }: { sampahId: string | null }) {
+/** Alur: scan QR dari /scan -> terhubung sekali -> setor multi-botol -> klaim & putus -> wajib scan ulang jika mau lagi. */
+function BinConnectView({ sampahId, scanNonce }: { sampahId: string | null; scanNonce: string | null }) {
   const { profile, user } = useAuth();
   const bin = useDoc<Bin>(sampahId ? `bins/${sampahId}` : null);
   const settingsDoc = useDoc<PointsSettings>("settings/points");
@@ -44,7 +45,9 @@ function BinConnectView({ sampahId }: { sampahId: string | null }) {
   const now = useNow(500);
 
   const [busy, setBusy] = useState(false);
-  const [disconnectedByUser, setDisconnectedByUser] = useState(false);
+  const [connectedOnce, setConnectedOnce] = useState(false);
+  const [sessionEnded, setSessionEnded] = useState(false);
+  const [needsFreshScan, setNeedsFreshScan] = useState(false);
   const autoTriedRef = useRef<string | null>(null);
 
   const data = bin.data;
@@ -54,21 +57,52 @@ function BinConnectView({ sampahId }: { sampahId: string | null }) {
   const mine = Boolean(session && session.userId === user?.uid);
   const taken = Boolean(session && session.userId !== user?.uid);
 
-  // Otomatis hubungkan akun begitu halaman dibuka dari Scan QR (bila stasiun bebas).
+  // Hubungkan HANYA bila datang dari hasil scan kamera baru (bukan refresh / klik hubungkan ulang).
   useEffect(() => {
     if (!sampahId || !data || !profile || !user) return;
-    if (disconnectedByUser || mine || taken || session !== null) return;
+    if (sessionEnded || connectedOnce || mine || taken || session !== null) return;
     if (autoTriedRef.current === sampahId) return;
     autoTriedRef.current = sampahId;
 
+    let storedNonce: string | null = null;
+    try {
+      storedNonce = sessionStorage.getItem(`scan-qr:${sampahId}`);
+      if (storedNonce) sessionStorage.removeItem(`scan-qr:${sampahId}`);
+    } catch {
+      // Abaikan jika sessionStorage tidak tersedia
+    }
+
+    const validFreshScan = Boolean(scanNonce && (!storedNonce || storedNonce === scanNonce));
+    if (!validFreshScan) {
+      Promise.resolve().then(() => setNeedsFreshScan(true));
+      return;
+    }
+
+    if (typeof window !== "undefined") {
+      window.history.replaceState(null, "", `/hubung?sampah=${sampahId}`);
+    }
+
     connectToBin(data.sampahId, profile, settings.sessionExpiryMinutes)
       .then(() => {
+        setConnectedOnce(true);
         toast.ok(`Akun ${profile.name} terhubung ke ${data.name}.`);
       })
       .catch((error) => {
         toast.error(error instanceof ActionError ? error.message : "Gagal menghubungkan akun.");
       });
-  }, [sampahId, data, profile, user, disconnectedByUser, mine, taken, session, settings.sessionExpiryMinutes]);
+  }, [
+    sampahId,
+    scanNonce,
+    data,
+    profile,
+    user,
+    sessionEnded,
+    connectedOnce,
+    mine,
+    taken,
+    session,
+    settings.sessionExpiryMinutes,
+  ]);
 
   if (!sampahId) {
     return (
@@ -82,7 +116,7 @@ function BinConnectView({ sampahId }: { sampahId: string | null }) {
       </div>
     );
   }
-  if (bin.loading || settingsDoc.loading) return <LoadingBlock label={`Menghubungkan ke ${sampahId}...`} />;
+  if (bin.loading || settingsDoc.loading) return <LoadingBlock label={`Memeriksa sambungan ke ${sampahId}...`} />;
   if (bin.error) {
     return (
       <ErrorState title="Stasiun belum bisa dibuka">
@@ -116,25 +150,13 @@ function BinConnectView({ sampahId }: { sampahId: string | null }) {
     .filter((d) => d.binId === data.sampahId && d.status === "pending" && d.expiresAt.toMillis() > now)
     .sort((a, b) => a.expiresAt.toMillis() - b.expiresAt.toMillis());
 
-  async function manualConnect() {
-    if (!profile || !data) return;
-    setBusy(true);
-    try {
-      setDisconnectedByUser(false);
-      await connectToBin(data.sampahId, profile, settings.sessionExpiryMinutes);
-      toast.ok(`Akunmu terhubung ke ${data.name}.`);
-    } catch (error) {
-      toast.error(error instanceof ActionError ? error.message : "Gagal menyambung. Coba lagi sebentar lagi.");
-    } finally {
-      setBusy(false);
-    }
-  }
+  const ended = sessionEnded || (connectedOnce && !mine);
 
   async function disconnect(silent = false) {
     if (!data) return;
     setBusy(true);
     try {
-      setDisconnectedByUser(true);
+      setSessionEnded(true);
       await disconnectFromBin(data.sampahId);
       if (!silent) toast.ok("Hubungan dengan stasiun diputus.");
     } catch {
@@ -166,7 +188,7 @@ function BinConnectView({ sampahId }: { sampahId: string | null }) {
         </div>
       </div>
 
-      {/* Kartu Setoran Menunggu Klaim (muncul begitu botol dikirim dari stasiun) */}
+      {/* Kartu Setoran Menunggu Klaim (otomatis memutus hubungan setelah klaim berhasil) */}
       {myPending.length > 0 && (
         <section aria-labelledby="menunggu" className="grid gap-3">
           <h2 id="menunggu" className="text-3xl">
@@ -179,7 +201,7 @@ function BinConnectView({ sampahId }: { sampahId: string | null }) {
       )}
 
       <AnimatePresence mode="wait">
-        {mine && session ? (
+        {mine && session && !sessionEnded ? (
           <motion.section
             key="mine"
             initial={{ opacity: 0, y: 12 }}
@@ -196,8 +218,8 @@ function BinConnectView({ sampahId }: { sampahId: string | null }) {
                     Halo, {session.userName}
                   </h2>
                   <p className="mt-1.5 text-sm text-on-fill/90">
-                    Taruh botol satu per satu di alas sensor. Semua botol yang dideteksi akan dikumpulkan ke akunmu,
-                    lalu tekan <strong>Klaim</strong> saat selesai.
+                    Taruh botol satu per satu di alas sensor. Setelah selesai, tekan <strong>Klaim &amp; Selesai</strong>{" "}
+                    lalu antre kembali bila ingin setor lagi.
                   </p>
                 </div>
                 <div className="rounded-full bg-card p-0.5 text-ink">
@@ -210,7 +232,6 @@ function BinConnectView({ sampahId }: { sampahId: string | null }) {
                 </div>
               </div>
 
-              {/* Daftar botol yang sudah dideteksi di sesi ini */}
               {basket.length > 0 && (
                 <div className="grid gap-2 rounded-[14px] bg-card p-4 text-ink">
                   <div className="flex items-center justify-between gap-2">
@@ -269,8 +290,8 @@ function BinConnectView({ sampahId }: { sampahId: string | null }) {
             <Chip tone="danger">Akses Terkunci</Chip>
             <h2 className="text-3xl">Sedang dipakai {session.userName}</h2>
             <p className="text-ink-soft">
-              Stasiun deteksi ini sedang terhubung dengan akun {session.userName}, sehingga pengguna lain tidak bisa
-              masuk atau mengklaim hasil deteksinya. Tunggu sampai ia selesai dan memutuskan hubungan.
+              Stasiun deteksi ini sedang terhubung dengan akun {session.userName}. Tunggu sampai sesinya selesai lalu scan
+              ulang QR di layar stasiun.
             </p>
             <LinkButton href="/dashboard" variant="ghost" className="w-fit">
               Kembali ke Dashboard
@@ -278,24 +299,27 @@ function BinConnectView({ sampahId }: { sampahId: string | null }) {
           </motion.section>
         ) : (
           <motion.section
-            key="free"
+            key="scan-required"
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
             className="patch grid gap-4 p-6"
           >
+            <Chip tone={ended ? "denim" : "thread"}>
+              {ended ? "Sesi Selesai" : "Perlu Scan Ulang QR"}
+            </Chip>
             <h2 className="text-3xl">
-              {disconnectedByUser ? "Hubungan dengan Stasiun Diputus" : `Siap Hubungkan ke ${data.name}`}
+              {ended ? "Poin Diklaim & Hubungan Diputus" : "Scan QR Stasiun untuk Terhubung"}
             </h2>
             <p className="text-ink-soft">
-              {disconnectedByUser
-                ? "Sesi setor botolmu sudah selesai. Stasiun sekarang terbuka untuk pengunjung berikutnya."
-                : "Menghubungkan akunmu agar setiap botol yang dideteksi tercatat khusus atas namamu."}
+              {ended || needsFreshScan
+                ? "Demi antrean yang adil agar tidak berebutan koneksi, setiap sesi baru wajib memindai ulang QR di layar stasiun lewat menu Scan QR."
+                : "Membuka koneksi QR baru..."}
             </p>
             <div className="flex flex-wrap gap-2">
-              <Button variant="thread" loading={busy} onClick={manualConnect} className="min-h-12 flex-1">
-                {disconnectedByUser ? "Hubungkan Ulang" : `Hubungkan ke ${data.name}`}
-              </Button>
+              <LinkButton href="/scan" variant="thread" className="min-h-12 flex-1">
+                Scan Ulang QR
+              </LinkButton>
               <LinkButton href="/dashboard" variant="ghost" className="min-h-12">
                 Ke Dashboard
               </LinkButton>

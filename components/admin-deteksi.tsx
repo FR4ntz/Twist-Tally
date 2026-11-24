@@ -851,8 +851,8 @@ export function AdminDeteksi() {
                         {liveDeposit?.userName ?? sentDeposit.userName} Dapat +{sentDeposit.points} Poin!
                       </h3>
                       <p className="text-sm text-ink-soft">
-                        {sentDeposit.bottleCount} botol telah tercatat permanen. Putuskan hubungan jika pengunjung sudah
-                        selesai, atau deteksi botol tambahan lagi.
+                        {sentDeposit.bottleCount} botol telah tercatat permanen. Pengunjung otomatis terputus dan harus
+                        scan ulang QR bila ingin menyetor lagi.
                       </p>
                       <div className="grid w-full gap-2 pt-2">
                         {session && (
@@ -861,12 +861,12 @@ export function AdminDeteksi() {
                           </Button>
                         )}
                         <Button
-                          variant="ghost"
-                          size="sm"
+                          variant={session ? "ghost" : "thread"}
+                          size={session ? "sm" : "md"}
                           onClick={() => setSentDeposit(null)}
                           className="w-full"
                         >
-                          {session ? `Tambah Botol Lagi untuk ${session.userName}` : "Siap untuk Pengunjung Berikutnya"}
+                          Siap untuk Pengunjung Berikutnya
                         </Button>
                       </div>
                     </div>

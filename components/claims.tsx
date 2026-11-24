@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ActionError, claimDeposit, expireDeposit } from "@/lib/actions";
+import { ActionError, claimDeposit, disconnectFromBin, expireDeposit } from "@/lib/actions";
 import { useArduinoSerial } from "@/lib/arduino-serial";
 import { useAuth } from "@/lib/auth-context";
 import { useCelebration } from "@/lib/celebrate";
@@ -33,8 +33,10 @@ function useClaim(deposit: WithId<Deposit>, onDisconnect?: () => Promise<void> |
       const result = await claimDeposit(user.uid, deposit.id);
       useArduinoSerial.getState().consumeCurrentBottle();
       useCelebration.getState().fire(`+${result.points}`, `poin masuk dari ${deposit.binName}`);
-      if (andDisconnect && onDisconnect) {
+      if (onDisconnect) {
         await onDisconnect();
+      } else if (andDisconnect || deposit.binId) {
+        await disconnectFromBin(deposit.binId).catch(() => {});
       }
     } catch (error) {
       toast.error(error instanceof ActionError ? error.message : "Klaim gagal. Coba lagi sebentar lagi.");
@@ -92,21 +94,10 @@ export function ClaimCard({
         <span className="font-bold">Total {deposit.bottleCount} botol</span>
         <Points value={deposit.points} size={24} className="text-3xl" />
       </div>
-      <div className="mt-4 grid gap-2">
-        {onDisconnect ? (
-          <>
-            <Button variant="thread" loading={busy} onClick={() => claim(true)} className="min-h-14 w-full text-lg">
-              Klaim {deposit.points} poin &amp; Putuskan hubungan
-            </Button>
-            <Button variant="ghost" size="sm" loading={busy} onClick={() => claim(false)} className="w-full">
-              Klaim saja (tetap terhubung)
-            </Button>
-          </>
-        ) : (
-          <Button variant="thread" loading={busy} onClick={() => claim(false)} className="min-h-14 w-full text-lg">
-            Klaim {deposit.points} poin
-          </Button>
-        )}
+      <div className="mt-4">
+        <Button variant="thread" loading={busy} onClick={() => claim(Boolean(onDisconnect))} className="min-h-14 w-full text-lg">
+          {onDisconnect ? `Klaim ${deposit.points} poin & Selesai` : `Klaim ${deposit.points} poin`}
+        </Button>
       </div>
       <p className="mt-2 text-center text-sm text-ink-soft">Poin hangus bila tidak diklaim sebelum hitung mundur habis.</p>
     </motion.article>

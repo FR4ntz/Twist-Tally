@@ -13,8 +13,14 @@ export function ScanView({ embedded = false }: { embedded?: boolean }) {
   function open(text: string) {
     const sampahId = extractSampahId(text);
     if (sampahId) {
+      const scanNonce = String(Date.now());
+      try {
+        sessionStorage.setItem(`scan-qr:${sampahId}`, scanNonce);
+      } catch {
+        // Abaikan jika sessionStorage tidak tersedia
+      }
       if (navigator.vibrate) navigator.vibrate(40);
-      router.push(`/hubung?sampah=${sampahId}`);
+      router.push(`/hubung?sampah=${sampahId}&scan=${scanNonce}`);
       return;
     }
 
