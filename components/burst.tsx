@@ -1,13 +1,12 @@
 "use client";
 
 import { motion, useReducedMotion } from "framer-motion";
-import { Kancing } from "./icons";
+import { KainMark } from "./icons";
 
 const colors = ["text-thread", "text-fill", "text-ink", "text-thread", "text-denim"];
 
 /**
- * Letusan kancing saat poin masuk. Sudut dan jarak dihitung dari indeks, bukan acak,
- * supaya render tetap murni. Tidak ditampilkan bila pengguna meminta gerak dikurangi.
+ * Letusan potongan kain tenun saat poin masuk atau diklaim. Sudut dan jarak deterministik dari indeks.
  */
 export function Burst({ count = 16 }: { count?: number }) {
   const reduce = useReducedMotion();
@@ -31,7 +30,7 @@ export function Burst({ count = 16 }: { count?: number }) {
             }}
             transition={{ duration: 1.1, ease: "easeOut", delay: (i % 4) * 0.03 }}
           >
-            <Kancing size={14 + (i % 3) * 4} className="[--kancing-hole:var(--paper)]" />
+            <KainMark size={14 + (i % 3) * 4} className="[--kain-line:var(--paper)]" />
           </motion.span>
         );
       })}

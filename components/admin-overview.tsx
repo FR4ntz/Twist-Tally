@@ -251,7 +251,7 @@ export function AdminOverview() {
           Setoran terbaru
         </h2>
         {allDeposits.length > 0 ? (
-          <ul className="divide-y-2 divide-dashed divide-stitch rounded-patch border-2 border-dashed border-stitch bg-card px-4">
+          <ul className="patch divide-y divide-edge/25 px-4">
             {allDeposits.slice(0, 8).map((d) => (
               <li key={d.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-3">
                 <span>

@@ -3,8 +3,8 @@
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 /*
-  Palet dari slide tim: indigo gingham, denim, krem linen. Satu aksen: benang kuning
-  untuk poin dan tombol klaim. Merah hanya untuk galat.
+  Palet asli Twist & Tally dipertahankan: biru dongker tinta, denim tenun, krem linen,
+  dan aksen benang kuning keemasan. Tema visual diubah ke lapisan kain tenun (linen & twill).
 */
 :root {
   color-scheme: light;
@@ -65,8 +65,8 @@
   --color-fill: #2a5090;
   --color-fill-deep: #1d2158;
   --color-on-fill: var(--on-fill);
-  --radius-patch: 14px;
-  --radius-chip: 8px;
+  --radius-patch: 16px;
+  --radius-chip: 9px;
 }
 
 @layer base {
@@ -120,11 +120,6 @@
     border-radius: 6px;
   }
 
-  /*
-    Kolom grid tanpa ukuran eksplisit ikut lebar konten terpanjang (misalnya teks nowrap),
-    sehingga halaman melebar di ponsel. Kolom bawaan dibuat bisa mengerut; utilitas grid-cols-*
-    tetap menimpa aturan ini.
-  */
   .grid {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -136,76 +131,122 @@
 }
 
 @layer components {
-  /* Tambalan kain: kartu dengan garis jahitan putus-putus di dalam tepi. */
+  /* Lembaran kain: kartu berlapis dengan tekstur anyaman linen halus dan tepi lipatan kain. */
   .patch {
     position: relative;
-    background: var(--card);
+    background-color: var(--card);
+    background-image:
+      repeating-linear-gradient(135deg, rgb(29 33 88 / 0.025) 0 2px, transparent 2px 8px),
+      repeating-linear-gradient(45deg, rgb(42 80 144 / 0.02) 0 2px, transparent 2px 10px);
+    border: 1.5px solid rgb(111 118 168 / 0.34);
     border-radius: var(--radius-patch);
     color: var(--ink);
-    transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.65),
+      0 8px 22px -12px rgb(29 33 88 / 0.16),
+      0 3px 0 rgb(154 161 204 / 0.32);
+    transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 240ms cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 240ms ease;
   }
   .patch::after {
     content: "";
     position: absolute;
-    inset: 5px;
-    border: 2px dashed var(--stitch);
-    border-radius: 10px;
+    inset: 4px;
+    border: 1px solid rgb(154 161 204 / 0.22);
+    border-radius: 12px;
     pointer-events: none;
   }
+  [data-theme="dark"] .patch {
+    background-image:
+      repeating-linear-gradient(135deg, rgb(241 236 226 / 0.03) 0 2px, transparent 2px 8px),
+      repeating-linear-gradient(45deg, rgb(141 178 238 / 0.03) 0 2px, transparent 2px 10px);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.08),
+      0 10px 26px -12px rgb(5 7 20 / 0.55),
+      0 3px 0 rgb(74 83 145 / 0.4);
+  }
+
   .patch-denim {
-    background: #2a5090;
+    background-color: #2a5090;
+    background-image:
+      repeating-linear-gradient(135deg, rgb(251 248 241 / 0.07) 0 2px, transparent 2px 8px),
+      linear-gradient(155deg, rgb(251 248 241 / 0.08) 0%, transparent 55%, rgb(13 16 36 / 0.18) 100%);
+    border-color: rgb(29 33 88 / 0.65);
     color: var(--on-fill);
+    box-shadow:
+      inset 0 1px 0 rgb(251 248 241 / 0.25),
+      0 12px 28px -12px rgb(29 33 88 / 0.45),
+      0 4px 0 #1d2158;
   }
   .patch-denim::after {
-    border-color: rgb(251 248 241 / 0.5);
+    border-color: rgb(251 248 241 / 0.22);
   }
+
   .patch-ink {
-    background: #1d2158;
+    background-color: #1d2158;
+    background-image:
+      repeating-linear-gradient(135deg, rgb(251 248 241 / 0.05) 0 2px, transparent 2px 8px),
+      linear-gradient(160deg, rgb(42 80 144 / 0.35) 0%, transparent 65%);
+    border-color: rgb(141 178 238 / 0.28);
     color: var(--on-fill);
   }
   .patch-ink::after {
-    border-color: rgb(251 248 241 / 0.4);
+    border-color: rgb(251 248 241 / 0.18);
   }
+
   .patch-linen {
-    background: var(--paper-deep);
+    background-color: var(--paper-deep);
+    background-image:
+      repeating-linear-gradient(0deg, rgb(29 33 88 / 0.022) 0 1px, transparent 1px 6px),
+      repeating-linear-gradient(90deg, rgb(29 33 88 / 0.022) 0 1px, transparent 1px 6px);
   }
   .patch-flat::after {
     display: none;
   }
 
-  /* Kain gingham dari dua gradien silang, dipakai hanya sebagai pita identitas. */
+  /* Kain gingham & anyaman twill lembut untuk pita latar beridentitas tekstil. */
   .gingham {
     background-color: var(--paper);
     background-image:
-      linear-gradient(90deg, rgb(42 80 144 / 0.34) 50%, transparent 50%),
-      linear-gradient(0deg, rgb(42 80 144 / 0.34) 50%, transparent 50%);
-    background-size: 26px 26px;
+      linear-gradient(90deg, rgb(42 80 144 / 0.14) 50%, transparent 50%),
+      linear-gradient(0deg, rgb(42 80 144 / 0.14) 50%, transparent 50%),
+      repeating-linear-gradient(135deg, rgb(29 33 88 / 0.04) 0 2px, transparent 2px 7px);
+    background-size: 28px 28px, 28px 28px, auto;
   }
   [data-theme="dark"] .gingham {
     background-image:
-      linear-gradient(90deg, rgb(141 178 238 / 0.22) 50%, transparent 50%),
-      linear-gradient(0deg, rgb(141 178 238 / 0.22) 50%, transparent 50%);
+      linear-gradient(90deg, rgb(141 178 238 / 0.12) 50%, transparent 50%),
+      linear-gradient(0deg, rgb(141 178 238 / 0.12) 50%, transparent 50%),
+      repeating-linear-gradient(135deg, rgb(241 236 226 / 0.04) 0 2px, transparent 2px 7px);
   }
 
-  /* Deretan tanda silang jahitan, warna mengikuti currentColor. */
-  .xstitch {
-    height: 12px;
-    background: currentColor;
-    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='12' viewBox='0 0 16 12'%3E%3Cpath d='M4 2l8 8M12 2l-8 8' stroke='black' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") repeat-x left center;
-    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='12' viewBox='0 0 16 12'%3E%3Cpath d='M4 2l8 8M12 2l-8 8' stroke='black' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") repeat-x left center;
-    opacity: 0.55;
+  /* Pita tenun pemisah halus antar blok. */
+  .xstitch,
+  .weave-ribbon {
+    height: 6px;
+    border-radius: 999px;
+    background: repeating-linear-gradient(
+      125deg,
+      currentColor 0 10px,
+      transparent 10px 16px
+    );
+    opacity: 0.35;
   }
 
-  /* Struk setoran: tepi bawah bergerigi seperti kertas yang disobek. */
+  /* Label kain gantung / tiket klaim setoran dengan tekstur anyaman rapi. */
   .receipt {
-    background: var(--card);
-    -webkit-mask: conic-gradient(from -45deg at bottom, transparent, #000 1deg 89deg, transparent 90deg) bottom / 16px 51% repeat-x,
-      linear-gradient(#000 0 0) top / 100% calc(100% - 7px) no-repeat;
-    mask: conic-gradient(from -45deg at bottom, transparent, #000 1deg 89deg, transparent 90deg) bottom / 16px 51% repeat-x,
-      linear-gradient(#000 0 0) top / 100% calc(100% - 7px) no-repeat;
+    background-color: var(--card);
+    background-image:
+      repeating-linear-gradient(0deg, rgb(42 80 144 / 0.02) 0 1px, transparent 1px 7px),
+      repeating-linear-gradient(90deg, rgb(42 80 144 / 0.02) 0 1px, transparent 1px 7px);
+    border: 1.5px solid rgb(111 118 168 / 0.38);
+    border-radius: var(--radius-patch);
+    box-shadow:
+      inset 0 4px 0 var(--denim),
+      0 10px 24px -12px rgb(29 33 88 / 0.2);
   }
 
-  /* Lembar dialog: naik dari bawah di ponsel, di tengah pada layar lebar. */
+  /* Lembar dialog */
   dialog.sheet {
     margin: auto auto 0;
     width: 100%;
@@ -245,14 +286,14 @@
 
   @keyframes thread-run {
     to {
-      background-position: 24px 0;
+      background-position: 32px 0;
     }
   }
   .loading-thread {
     height: 6px;
-    border-radius: 3px;
-    background: repeating-linear-gradient(90deg, var(--stitch) 0 12px, transparent 12px 24px);
-    animation: thread-run 900ms linear infinite;
+    border-radius: 999px;
+    background: repeating-linear-gradient(120deg, var(--denim) 0 12px, var(--thread) 12px 20px, transparent 20px 32px);
+    animation: thread-run 1000ms linear infinite;
   }
 }
 
@@ -271,7 +312,6 @@
   padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
 }
 
-/* Cetak QR tempat sampah: hanya area .print-area yang keluar di kertas. */
 @media print {
   body * {
     visibility: hidden;

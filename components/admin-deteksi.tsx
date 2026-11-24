@@ -24,6 +24,7 @@ import { Bottle, BottleTrio } from "./bottle-art";
 import { Burst } from "./burst";
 import { CelebrationOverlay } from "./claims";
 import { Countdown } from "./countdown";
+import { FabricBackdrop } from "./fabric-backdrop";
 import { Icon } from "./icons";
 import { Logo } from "./logo";
 import { toast } from "./providers";
@@ -299,12 +300,12 @@ export function AdminDeteksi() {
   }
 
   return (
-    <div className="min-h-dvh bg-paper text-ink">
+    <div className="relative min-h-dvh overflow-x-clip bg-paper text-ink">
       <CelebrationOverlay />
 
-      <div className="gingham h-3 w-full border-b-2 border-ink" aria-hidden="true" />
+      <div className="gingham h-3 w-full border-b border-ink/40" aria-hidden="true" />
 
-      <header className="sticky top-0 z-30 border-b-2 border-dashed border-stitch bg-paper/92 backdrop-blur-md">
+      <header className="sticky top-0 z-30 border-b border-edge/30 bg-paper/92 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-2.5 sm:px-6 lg:px-8">
           <div className="flex flex-wrap items-center gap-3">
             <LinkButton href="/admin" variant="ghost" size="sm">
@@ -374,9 +375,10 @@ export function AdminDeteksi() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: SMOOTH_EASE }}
           aria-labelledby="judul-pameran"
-          className="gingham relative overflow-hidden rounded-[22px] border-2 border-ink p-5 sm:p-7"
+          className="gingham relative overflow-hidden rounded-[22px] border border-edge/50 p-5 sm:p-7"
         >
-          <div className="patch grid gap-5 p-5 sm:p-7 lg:grid-cols-[1.2fr_1fr] lg:items-center">
+          <FabricBackdrop variant="hero" />
+          <div className="patch relative z-10 grid gap-5 p-5 sm:p-7 lg:grid-cols-[1.2fr_1fr] lg:items-center">
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center gap-2 rounded-chip bg-ink px-3 py-1 text-xs font-black uppercase tracking-wider text-paper">
@@ -441,7 +443,7 @@ export function AdminDeteksi() {
                         ? "border-ink bg-thread text-thread-ink shadow-[0_3px_0_var(--ink)]"
                         : isDone
                           ? "border-fill bg-denim-soft text-ink"
-                          : "border-dashed border-stitch bg-paper-deep/65 text-ink-soft",
+                          : "border-edge/30 bg-paper-deep/70 text-ink-soft",
                     )}
                   >
                     <span
@@ -616,7 +618,7 @@ export function AdminDeteksi() {
                         >
                           <BottleTrio scale={0.48} />
                         </motion.div>
-                        <p className="max-w-xs rounded-[10px] border-2 border-dashed border-edge bg-card/85 px-3 py-1.5 text-xs font-bold text-ink-soft">
+                        <p className="max-w-xs rounded-[10px] border border-edge/40 bg-card/90 px-3 py-1.5 text-xs font-bold text-ink-soft">
                           {serialStatus === "connected"
                             ? "Sensor aktif! Letakkan botol di atas alas untuk mulai mengukur."
                             : "Hubungkan Arduino USB atau nyalakan Mode Demo di kanan atas."}
@@ -629,12 +631,12 @@ export function AdminDeteksi() {
                     className="mt-1.5 h-4 w-52 rounded-full border-2 border-ink bg-denim shadow-[0_4px_0_var(--ink)]"
                     aria-hidden="true"
                   >
-                    <span className="block h-full w-full rounded-full border-b-2 border-dashed border-on-fill/55" />
+                    <span className="block h-full w-full rounded-full border-b border-on-fill/40" />
                   </div>
                 </div>
 
                 <div
-                  className="relative h-full border-l-2 border-dashed border-stitch pl-2.5 text-xs font-bold text-ink-soft"
+                  className="relative h-full border-l-2 border-edge/35 pl-2.5 text-xs font-bold text-ink-soft"
                   aria-hidden="true"
                 >
                   {[35, 25, 18, 10, 0].map((cm) => (
@@ -660,19 +662,19 @@ export function AdminDeteksi() {
 
             {/* 3 Telemetry Cards */}
             <div className="grid grid-cols-3 gap-3">
-              <div className="rounded-[12px] border-2 border-dashed border-stitch bg-paper-deep/65 p-3 text-center">
+              <div className="rounded-[12px] border border-edge/30 bg-paper-deep/70 p-3 text-center">
                 <p className="text-xs font-bold text-ink-soft">Tinggi</p>
                 <p className="mt-0.5 font-display text-3xl font-black leading-none tabular-nums">
                   {reading ? `${reading.heightCm.toFixed(1)} cm` : "-"}
                 </p>
               </div>
-              <div className="rounded-[12px] border-2 border-dashed border-stitch bg-paper-deep/65 p-3 text-center">
+              <div className="rounded-[12px] border border-edge/30 bg-paper-deep/70 p-3 text-center">
                 <p className="text-xs font-bold text-ink-soft">Kategori</p>
                 <p className="mt-0.5 font-display text-3xl font-black leading-none text-denim">
                   {reading ? reading.tier : "-"}
                 </p>
               </div>
-              <div className="rounded-[12px] border-2 border-dashed border-stitch bg-paper-deep/65 p-3 text-center">
+              <div className="rounded-[12px] border border-edge/30 bg-paper-deep/70 p-3 text-center">
                 <p className="text-xs font-bold text-ink-soft">Estimasi</p>
                 <div className="mt-0.5 flex justify-center">
                   {reading ? (
@@ -696,7 +698,7 @@ export function AdminDeteksi() {
             </Button>
 
             {demoMode && (
-              <div className="grid gap-3 rounded-[14px] border-2 border-dashed border-denim bg-denim-soft/65 p-4">
+              <div className="grid gap-3 rounded-[14px] border border-denim/40 bg-denim-soft/75 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-xs font-black uppercase tracking-wider text-ink">Kontrol Simulasi Pameran</p>
                   <button
@@ -738,7 +740,7 @@ export function AdminDeteksi() {
               </div>
             )}
 
-            <div className="grid gap-2 border-t-2 border-dashed border-stitch pt-4">
+            <div className="grid gap-2 border-t border-edge/25 pt-4">
               <p className="text-xs font-bold uppercase tracking-wider text-ink-soft">Kategori Poin Botol</p>
               <ul className="grid grid-cols-3 gap-2.5">
                 {tiers.map((tier, idx) => {
@@ -759,7 +761,7 @@ export function AdminDeteksi() {
                         "flex items-center justify-center gap-2 rounded-[12px] border-2 p-2.5 transition-colors",
                         activeMatch
                           ? "border-ink bg-thread text-thread-ink shadow-[0_3px_0_var(--ink)]"
-                          : "border-dashed border-stitch bg-paper-deep/60",
+                          : "border-edge/30 bg-paper-deep/65",
                       )}
                     >
                       <Bottle height={previewHeight} className="hidden shrink-0 sm:block" />
@@ -897,7 +899,7 @@ export function AdminDeteksi() {
                           label="Batas waktu klaim"
                         />
                       </div>
-                      <div className="w-full rounded-[14px] border-2 border-dashed border-stitch bg-paper-deep/70 p-4">
+                      <div className="w-full rounded-[14px] border border-edge/30 bg-paper-deep/75 p-4">
                         <p className="text-xs font-bold uppercase tracking-wider text-ink-soft">
                           {sentDeposit.bottleCount} botol terkirim ke ponsel {sentDeposit.userName}
                         </p>
@@ -931,7 +933,7 @@ export function AdminDeteksi() {
                     {basket.map((item, idx) => (
                       <li
                         key={`${item.heightCm}-${idx}`}
-                        className="flex items-center justify-between gap-3 rounded-[10px] border-2 border-dashed border-stitch bg-paper-deep/55 px-3 py-2 text-sm"
+                        className="flex items-center justify-between gap-3 rounded-[10px] border border-edge/30 bg-paper-deep/60 px-3 py-2 text-sm"
                       >
                         <span>
                           <strong>Botol #{idx + 1}</strong> · {item.heightCm.toFixed(1)} cm ({item.tier})
@@ -961,7 +963,7 @@ export function AdminDeteksi() {
                       Kirim Klaim (+{basketPoints} Poin) ke {session.userName}
                     </Button>
                   ) : (
-                    <p className="rounded-[10px] border-2 border-dashed border-thread bg-paper-deep px-3 py-2.5 text-center text-xs font-bold text-ink">
+                    <p className="rounded-[10px] border-2 border-thread bg-paper-deep px-3 py-2.5 text-center text-xs font-bold text-ink">
                       Scan QR di atas dulu agar akun pengunjung terhubung untuk mengklaim {basket.length} botol ini.
                     </p>
                   )}
@@ -1005,7 +1007,7 @@ export function AdminDeteksi() {
                     </p>
                   </div>
 
-                  <div className="w-full border-t-2 border-dashed border-stitch pt-3 text-left">
+                  <div className="w-full border-t border-edge/25 pt-3 text-left">
                     <div className="mb-1 flex items-center justify-between text-xs font-bold text-ink-soft">
                       <span>Kapasitas {bin.name}</span>
                       <span className="tabular-nums">

@@ -98,7 +98,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
   );
 
   const outLinks = (
-    <div className="grid gap-2 border-t-2 border-dashed border-stitch pt-3 text-sm font-bold">
+    <div className="grid gap-2 border-t border-edge/30 pt-3 text-sm font-bold">
       <Link
         href="/dashboard"
         className="flex min-h-11 items-center gap-2.5 rounded-[10px] px-3 text-ink-soft transition hover:bg-card hover:text-ink"
@@ -111,10 +111,10 @@ export function AdminShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-dvh lg:pl-72">
-      <aside className="fixed inset-y-0 left-0 hidden w-72 flex-col gap-4 overflow-y-auto border-r-2 border-dashed border-stitch bg-paper-deep/65 p-4 lg:flex">
+      <aside className="fixed inset-y-0 left-0 hidden w-72 flex-col gap-4 overflow-y-auto border-r border-edge/30 bg-paper-deep/70 p-4 lg:flex">
         <div className="patch p-3.5">
           <Logo href="/admin" />
-          <div className="mt-3 flex items-center justify-between gap-2 border-t-2 border-dashed border-stitch/70 pt-2.5">
+          <div className="mt-3 flex items-center justify-between gap-2 border-t border-edge/25 pt-2.5">
             <span className="truncate text-xs font-bold text-ink-soft">{adminName}</span>
             <Chip tone="thread">Admin</Chip>
           </div>
@@ -124,7 +124,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
         <div className="mt-auto">{outLinks}</div>
       </aside>
 
-      <header className="sticky top-0 z-30 border-b-2 border-dashed border-stitch bg-paper/95 backdrop-blur-md">
+      <header className="sticky top-0 z-30 border-b border-edge/30 bg-paper/95 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
             <div className="lg:hidden">

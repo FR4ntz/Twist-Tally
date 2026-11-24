@@ -57,7 +57,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-dvh">
-      <header className="sticky top-0 z-40 border-b-2 border-dashed border-stitch/60 bg-paper/90 backdrop-blur-md">
+      <header className="sticky top-0 z-40 border-b border-edge/30 bg-paper/92 backdrop-blur-md">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-1.5 sm:px-6">
           <Logo href="/" />
 
@@ -91,7 +91,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Link
               href="/riwayat"
               aria-label={`Saldo ${profile.points} poin, buka riwayat`}
-              className="flex min-h-11 items-center rounded-[10px] border-2 border-edge/50 bg-card px-3 transition hover:-translate-y-0.5 hover:border-ink"
+              className="flex min-h-11 items-center rounded-[10px] border border-edge/40 bg-card px-3 shadow-[0_2px_0_rgb(154_161_204/0.35)] transition hover:-translate-y-0.5 hover:border-ink"
             >
               <Points value={profile.points} />
             </Link>
@@ -116,7 +116,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <nav
         aria-label="Menu utama ponsel"
-        className="pb-safe fixed inset-x-0 bottom-0 z-40 border-t-2 border-dashed border-stitch bg-paper md:hidden"
+        className="pb-safe fixed inset-x-0 bottom-0 z-40 border-t border-edge/35 bg-paper/95 backdrop-blur-md md:hidden"
       >
         <ul className="mx-auto grid max-w-lg grid-cols-5 items-end">
           {items.slice(0, 2).map((item) => (
@@ -128,7 +128,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 href="/scan"
                 aria-label="Scan QR tempat sampah"
                 aria-current={isActive("/scan") || isActive("/hubung") ? "page" : undefined}
-                className="-mt-7 grid size-16 place-items-center rounded-full bg-ink text-paper shadow-[0_6px_16px_rgb(29_33_88/0.28)] outline-2 outline-offset-4 outline-dashed outline-thread transition-colors"
+                className="-mt-7 grid size-16 place-items-center rounded-full border-4 border-thread bg-ink text-paper shadow-[0_8px_20px_rgb(29_33_88/0.32)] transition-colors"
               >
                 <Icon name="scan" size={30} />
               </Link>

@@ -11,7 +11,7 @@ import {
   type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
 } from "react";
-import { Icon, Kancing } from "./icons";
+import { Icon, KainMark } from "./icons";
 
 export function cn(...parts: (string | false | null | undefined)[]) {
   return parts.filter(Boolean).join(" ");
@@ -180,7 +180,7 @@ export function Chip({ children, tone = "plain" }: { children: ReactNode; tone?:
 export function Points({ value, className, size = 18 }: { value: number; className?: string; size?: number }) {
   return (
     <span className={cn("inline-flex items-center gap-1.5 font-bold", className)}>
-      <Kancing size={size} className="text-thread [--kancing-hole:#2a1b00]" />
+      <KainMark size={size} className="text-thread [--kain-line:#2a1b00]" />
       {value}
       <span className="sr-only"> poin</span>
     </span>
@@ -408,7 +408,7 @@ export function Tabs<T extends string>({
   );
 }
 
-/** Pengukur isi tempat sampah: sepuluh jahitan yang terisi berurutan. Persen selalu ditulis juga. */
+/** Pengukur isi tempat sampah: sepuluh potongan kain tenun yang terisi berurutan. Persen selalu ditulis juga. */
 export function FillGauge({ percent, label }: { percent: number; label?: string }) {
   const filled = Math.ceil(percent / 10);
   const warn = percent >= 80;
@@ -421,13 +421,13 @@ export function FillGauge({ percent, label }: { percent: number; label?: string 
       aria-label={label ?? "Isi tempat sampah"}
       className="flex items-center gap-3"
     >
-      <div className="flex flex-1 gap-1" aria-hidden="true">
+      <div className="flex flex-1 gap-1.5" aria-hidden="true">
         {Array.from({ length: 10 }, (_, i) => (
           <span
             key={i}
             className={cn(
-              "h-4 flex-1 rounded-[3px] transition-colors duration-300",
-              i < filled ? (warn ? "bg-thread" : "bg-fill") : "border-2 border-dashed border-stitch",
+              "h-4 flex-1 rounded-[4px] transition-colors duration-300",
+              i < filled ? (warn ? "bg-thread" : "bg-fill") : "border border-edge/40 bg-paper-deep/75",
             )}
           />
         ))}

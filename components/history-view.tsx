@@ -51,7 +51,7 @@ export function HistoryView({ embedded = false }: { embedded?: boolean }) {
           ) : ledger.error ? (
             <ErrorState title="Riwayat poin belum bisa dimuat">Periksa koneksi internetmu, lalu buka ulang halaman ini.</ErrorState>
           ) : ledger.data && ledger.data.length > 0 ? (
-            <ul className="receipt divide-y-2 divide-dashed divide-stitch px-5 pb-9 pt-2">
+            <ul className="receipt divide-y divide-edge/20 px-5 pb-7 pt-2">
               {ledger.data.map((entry) => (
                 <LedgerRow key={entry.id} entry={entry} />
               ))}

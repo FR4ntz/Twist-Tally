@@ -86,7 +86,7 @@ export function BottleScannerPad({
         )}
       </div>
 
-      <div className="relative overflow-hidden rounded-[14px] border-2 border-dashed border-stitch bg-paper-deep/85 px-4 pb-4 pt-6">
+      <div className="relative overflow-hidden rounded-[14px] border border-edge/40 bg-paper-deep/85 px-4 pb-4 pt-6">
         <div className="mx-auto flex w-fit flex-col items-center">
           <div className="flex items-center gap-2.5 rounded-[10px] bg-ink px-3 py-1.5 text-paper">
             <span className="size-3 rounded-full border-2 border-paper/70 bg-paper/20" aria-hidden="true" />
@@ -159,7 +159,7 @@ export function BottleScannerPad({
                   exit={{ opacity: 0 }}
                   className="mb-4 flex flex-col items-center gap-2 text-center"
                 >
-                  <div className="grid size-16 place-items-center rounded-[12px] border-2 border-dashed border-edge text-ink-soft">
+                  <div className="grid size-16 place-items-center rounded-[12px] border border-edge/45 bg-card text-ink-soft">
                     <Icon name="bottle" size={30} />
                   </div>
                   <p className="max-w-[12rem] text-xs font-bold text-ink-soft">
@@ -172,11 +172,11 @@ export function BottleScannerPad({
             </AnimatePresence>
 
             <div className="mt-1 h-3.5 w-40 rounded-full border-2 border-ink bg-denim shadow-[0_3px_0_var(--ink)]" aria-hidden="true">
-              <span className="block h-full w-full rounded-full border-b-2 border-dashed border-on-fill/50" />
+              <span className="block h-full w-full rounded-full border-b border-on-fill/40" />
             </div>
           </div>
 
-          <div className="relative h-full border-l-2 border-dashed border-stitch pl-2 text-[11px] font-bold text-ink-soft" aria-hidden="true">
+          <div className="relative h-full border-l-2 border-edge/35 pl-2 text-[11px] font-bold text-ink-soft" aria-hidden="true">
             {[35, 25, 18, 10, 0].map((cm) => (
               <div
                 key={cm}

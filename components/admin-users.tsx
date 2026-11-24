@@ -31,7 +31,7 @@ export function AdminUsers() {
           {search ? "Periksa ejaan nama atau email." : "Pengguna muncul di sini setelah mereka membuat akun."}
         </EmptyState>
       ) : (
-        <ul className="divide-y-2 divide-dashed divide-stitch rounded-patch border-2 border-dashed border-stitch px-4">
+        <ul className="patch divide-y divide-edge/25 px-4">
           {list.map((u) => (
             <li key={u.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-3">
               <span className="min-w-0">

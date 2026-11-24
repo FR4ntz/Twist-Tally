@@ -240,7 +240,7 @@ function BinConnectView({ sampahId, scanNonce }: { sampahId: string | null; scan
                     </p>
                     <Points value={basketPoints} size={18} className="text-lg" />
                   </div>
-                  <ul className="divide-y divide-dashed divide-stitch text-sm">
+                  <ul className="divide-y divide-edge/25 text-sm">
                     {basket.map((b, i) => (
                       <li key={`${b.heightCm}-${i}`} className="flex items-center justify-between py-1.5">
                         <span>

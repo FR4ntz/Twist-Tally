@@ -11,7 +11,7 @@ import type { Bin, LedgerEntry, Reward } from "@/lib/types";
 import { BinArt } from "./bin-art";
 import { Bottle } from "./bottle-art";
 import { Countdown } from "./countdown";
-import { Icon, Kancing } from "./icons";
+import { Icon, KainMark } from "./icons";
 import { LedgerRow } from "./rows";
 import { Chip, EmptyState, ErrorState, FillGauge, LinkButton, LoadingBlock, PageTitle } from "./ui";
 
@@ -101,7 +101,7 @@ export function HomeView() {
             Saldo poin
           </h2>
           <p className="mt-3 flex items-center gap-3 font-display font-black leading-none">
-            <Kancing size={46} className="shrink-0 text-thread [--kancing-hole:#2a5090]" />
+            <KainMark size={46} className="shrink-0 text-thread [--kain-line:#2a5090]" />
             <span className="text-[4.5rem] sm:text-[5.5rem]" aria-hidden="true">
               <CountUp value={profile.points} />
             </span>
@@ -117,7 +117,7 @@ export function HomeView() {
           </p>
         </motion.div>
 
-        <div className="flex flex-col justify-between gap-4 rounded-patch border-2 border-dashed border-stitch p-5">
+        <div className="patch flex flex-col justify-between gap-4 p-5">
           {rewards.loading ? (
             <LoadingBlock label="Mencari hadiah terdekat..." />
           ) : target ? (
@@ -143,7 +143,7 @@ export function HomeView() {
                 aria-valuemax={target.pointsCost}
                 aria-valuenow={profile.points}
                 aria-label={`Poin menuju ${target.name}`}
-                className="mt-3 h-4 overflow-hidden rounded-[4px] border-2 border-dashed border-stitch"
+                className="mt-3 h-4 overflow-hidden rounded-full border border-edge/40 bg-paper-deep"
               >
                 <motion.div
                   className="h-full bg-fill"
@@ -197,7 +197,7 @@ export function HomeView() {
               Periksa koneksi internetmu, lalu muat ulang halaman ini.
             </ErrorState>
           ) : ledger.data && ledger.data.length > 0 ? (
-            <ul className="receipt divide-y-2 divide-dashed divide-stitch px-5 pb-8 pt-2">
+            <ul className="receipt divide-y divide-edge/20 px-5 pb-6 pt-2">
               {ledger.data.map((entry) => (
                 <LedgerRow key={entry.id} entry={entry} />
               ))}

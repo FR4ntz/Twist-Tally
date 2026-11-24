@@ -1,8 +1,7 @@
 import type { SVGProps } from "react";
 
 /*
-  Ikon dibuat sebagai siluet padat seperti tambalan kain, bukan garis tipis.
-  Tiap bentuk dipilih dari isinya: label harga untuk tukar poin, struk untuk riwayat.
+  Ikon siluet padat bertema lipatan & potongan kain tenun modern.
 */
 const shapes = {
   home: <path d="M12 2.8 2.6 11.2h2.9V21h5v-6.2h3V21h5v-9.8h2.9z" />,
@@ -21,7 +20,7 @@ const shapes = {
   receipt: (
     <path
       fillRule="evenodd"
-      d="M5 2.5h14v19.2l-2.33-1.6-2.34 1.6L12 20.1l-2.33 1.6-2.34-1.6L5 21.7zM8.5 7v1.8h7V7zm0 4v1.8h7V11zm0 4v1.8h4.5V15z"
+      d="M5 2.5h14v19l-7-3-7 3zM8.5 7v1.8h7V7zm0 4v1.8h7V11zm0 4v1.8h4.5V15z"
     />
   ),
   user: <path d="M12 12.2a4.6 4.6 0 1 0 0-9.2 4.6 4.6 0 0 0 0 9.2zM3.5 21.2a8.5 8.5 0 0 1 17 0z" />,
@@ -101,8 +100,8 @@ export function Icon({ name, size = 24, ...props }: { name: IconName; size?: num
   );
 }
 
-/** Kancing dua lubang dari slide tim. Dipakai sebagai satuan poin dan penanda utama. */
-export function Kancing({ size = 20, className }: { size?: number; className?: string }) {
+/** Lambang lipatan & anyaman kain tenun: dipakai sebagai ikon poin dan identitas Twist & Tally. */
+export function KainMark({ size = 20, className }: { size?: number; className?: string }) {
   return (
     <svg
       width={size}
@@ -112,10 +111,14 @@ export function Kancing({ size = 20, className }: { size?: number; className?: s
       focusable="false"
       className={className}
     >
-      <circle cx="12" cy="12" r="11" fill="currentColor" />
-      <circle cx="12" cy="12" r="8" fill="none" stroke="var(--kancing-hole, #fbf8f1)" strokeWidth="1.2" opacity="0.6" />
-      <circle cx="9" cy="12" r="1.7" fill="var(--kancing-hole, #fbf8f1)" />
-      <circle cx="15" cy="12" r="1.7" fill="var(--kancing-hole, #fbf8f1)" />
+      <rect x="3" y="5" width="13" height="14" rx="3.5" fill="currentColor" opacity="0.55" transform="rotate(-8 9.5 12)" />
+      <rect x="6.5" y="4" width="14" height="15" rx="3.5" fill="currentColor" transform="rotate(6 13.5 11.5)" />
+      <path
+        d="M9.5 9.2h7M9.5 12.2h7M9.5 15.2h4.5"
+        stroke="var(--kain-line, #fbf8f1)"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }

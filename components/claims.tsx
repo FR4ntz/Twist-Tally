@@ -80,7 +80,7 @@ export function ClaimCard({
         </div>
         <Countdown expiresAt={deposit.expiresAt} totalMs={totalMs(deposit)} size={60} label="Batas klaim" />
       </div>
-      <ul className="mt-3 grid gap-1.5 border-y-2 border-dashed border-stitch py-3">
+      <ul className="mt-3 grid gap-1.5 border-y border-edge/30 py-3">
         {groups.map((g) => (
           <li key={g.tier} className="flex items-baseline justify-between gap-3">
             <span>
@@ -223,7 +223,7 @@ export function CelebrationOverlay() {
               initial={{ scale: 0.6, opacity: 0.8 }}
               animate={{ scale: 1.8, opacity: 0 }}
               transition={{ duration: 0.9, ease: "easeOut" }}
-              className="pointer-events-none absolute inset-0 m-auto size-40 rounded-full border-4 border-dashed border-thread"
+              className="pointer-events-none absolute inset-0 m-auto size-40 rounded-full border-4 border-thread/75"
             />
             <p className="relative font-display text-[6.5rem] font-black leading-none text-thread sm:text-[7.5rem]">{current.big}</p>
             <p className="relative mt-2 text-xl font-bold">{current.small}</p>

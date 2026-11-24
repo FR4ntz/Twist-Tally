@@ -104,7 +104,7 @@ export function QrScanner({ onText, autoStart = true }: { onText: (text: string)
 
         {status === "scanning" && (
           <>
-            <span aria-hidden="true" className="pointer-events-none absolute inset-6 rounded-[8px] border-[3px] border-dashed border-thread" />
+            <span aria-hidden="true" className="pointer-events-none absolute inset-6 rounded-[12px] border-2 border-thread/85 shadow-[0_0_0_1px_rgb(29_33_88/0.35)]" />
             <motion.span
               aria-hidden="true"
               className="pointer-events-none absolute inset-x-8 h-0.5 bg-thread"

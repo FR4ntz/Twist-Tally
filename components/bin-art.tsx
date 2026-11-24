@@ -5,7 +5,6 @@ import { AnimatePresence, motion } from "framer-motion";
 const CAPACITY = 12;
 const COLS = 3;
 
-/** Satu botol mini: tutup, badan bening, label gingham. Digambar di ruang 120x300 lalu diperkecil. */
 function MiniBottle() {
   return (
     <g>
@@ -23,8 +22,7 @@ function MiniBottle() {
 }
 
 /**
- * Tempat sampah pintar: jendela di badan menunjukkan botol yang menumpuk sesuai persen isi.
- * `drop` memicu satu botol jatuh lewat celah tutup (dipakai simulator dan demo di halaman depan).
+ * Tempat sampah pintar bernuansa kain tenun denim dengan jendela pantau kapasitas botol.
  */
 export function BinArt({
   percent,
@@ -46,21 +44,21 @@ export function BinArt({
     >
       <rect x="30" y="236" width="14" height="10" rx="3" fill="#1d2158" />
       <rect x="156" y="236" width="14" height="10" rx="3" fill="#1d2158" />
-      <rect x="26" y="74" width="148" height="164" rx="14" fill="#2a5090" />
+      <rect x="26" y="74" width="148" height="164" rx="16" fill="#2a5090" />
+      {/* Lipatan kain tepi halus */}
       <rect
         x="34"
         y="82"
         width="132"
         height="148"
-        rx="9"
+        rx="10"
         fill="none"
         stroke="#fbf8f1"
-        strokeOpacity="0.5"
+        strokeOpacity="0.35"
         strokeWidth="2"
-        strokeDasharray="6 5"
       />
 
-      <rect x="50" y="96" width="100" height="108" rx="8" fill="#0d1024" opacity="0.45" />
+      <rect x="50" y="96" width="100" height="108" rx="10" fill="#0d1024" opacity="0.45" />
       <svg x="50" y="96" width="100" height="108" viewBox="0 0 100 108" overflow="hidden">
         {Array.from({ length: count }, (_, i) => {
           const col = i % COLS;
@@ -80,12 +78,12 @@ export function BinArt({
         })}
       </svg>
 
-      <rect x="18" y="54" width="164" height="26" rx="8" fill="#1d2158" />
+      <rect x="18" y="54" width="164" height="26" rx="10" fill="#1d2158" />
       <rect x="68" y="62" width="64" height="9" rx="4.5" fill="#0d1024" />
-      <circle cx="36" cy="67" r="5" fill="#e8a317" />
-      <circle cx="164" cy="67" r="5" fill="#e8a317" />
+      <circle cx="36" cy="67" r="4.5" fill="#e8a317" />
+      <circle cx="164" cy="67" r="4.5" fill="#e8a317" />
 
-      <rect x="62" y="208" width="76" height="20" rx="4" fill="#fbf8f1" />
+      <rect x="62" y="208" width="76" height="20" rx="6" fill="#fbf8f1" />
       <text x="100" y="223" textAnchor="middle" fontSize="15" fontWeight="900" fill="#1d2158" fontFamily="var(--font-londrina), sans-serif">
         {percent}%
       </text>
@@ -98,9 +96,8 @@ export function BinArt({
             animate={{ y: 44, opacity: 0, rotate: 0 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.7, ease: "easeIn" }}
-            style={{ transformOrigin: "100px 40px" }}
           >
-            <g transform="translate(90 20) scale(0.085)">
+            <g transform="translate(86 0) scale(0.24)">
               <MiniBottle />
             </g>
           </motion.g>

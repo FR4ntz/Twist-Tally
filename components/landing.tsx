@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { AnimatePresence, motion, useScroll, useSpring } from "framer-motion";
@@ -8,11 +9,14 @@ import { formatNumber } from "@/lib/format";
 import { useCollection, useDoc } from "@/lib/hooks";
 import { sortTiers, withDefaults } from "@/lib/points";
 import type { Bin, PointsSettings, Reward } from "@/lib/types";
+import heroFabricImg from "@/public/images/hero-fabric-recycle.jpg";
+import textileCraftImg from "@/public/images/textile-upcycle-craft.jpg";
 import { BinArt } from "./bin-art";
 import { BottleTrio } from "./bottle-art";
-import { Icon, Kancing } from "./icons";
+import { FabricBackdrop } from "./fabric-backdrop";
+import { Icon, KainMark } from "./icons";
 import { Logo } from "./logo";
-import { Button, LinkButton, Points } from "./ui";
+import { Button, Chip, LinkButton, Points } from "./ui";
 
 const DEMO_CAPACITY = 12;
 const SMOOTH_EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
@@ -37,20 +41,20 @@ export function Landing() {
 
   const steps = [
     {
-      title: "Scan QR di tempat sampah",
-      body: "QR yang tertempel di tempat sampah menghubungkan akunmu ke sensornya. Tiap tempat sampah punya ID sendiri, misalnya SB-7K3P.",
+      title: "Scan QR di stasiun botol",
+      body: "Satu kali scan lewat menu Scan QR menghubungkan akunmu secara eksklusif ke stasiun sensor Twist & Tally.",
     },
     {
-      title: "Taruh botol di alas & Deteksi Ukuran",
-      body: "Sensor ultrasonik membaca tinggi botol di atas alas secara real-time, lalu menghitung poin dari ukuran kecil, sedang, atau besar.",
+      title: "Deteksi ukuran 1 atau banyak botol",
+      body: "Taruh botol di atas alas sensor ultrasonik. Sistem membaca tinggi tiap botol dan mengumpulkan poinnya secara langsung.",
     },
     {
-      title: `Klaim dalam ${settings.depositExpiryMinutes} menit`,
-      body: "Poin dari sensor muncul di aplikasi dengan hitung mundur. Klaim sebelum waktunya habis, kalau tidak poinnya hangus.",
+      title: `Klaim poin & putuskan hubungan`,
+      body: `Klaim total poinmu sebelum batas ${settings.depositExpiryMinutes} menit, lalu hubungan otomatis dilepas agar pengguna lain dapat giliran.`,
     },
     {
-      title: "Tukar di katalog",
-      body: "Pilih hadiah, tukar poinnya, lalu tunjukkan kode voucher ke admin untuk mengambil barangnya.",
+      title: "Tukar jadi produk kain daur ulang",
+      body: "Tukarkan poinmu dengan totebag, syal tenun, atau produk tekstil daur ulang lewat katalog.",
     },
   ];
 
@@ -62,7 +66,7 @@ export function Landing() {
         className="fixed inset-x-0 top-0 z-50 h-1 origin-left bg-thread"
       />
 
-      <header className="sticky top-0 z-40 border-b-2 border-dashed border-stitch/60 bg-paper/90 backdrop-blur-md">
+      <header className="sticky top-0 z-40 border-b border-edge/30 bg-paper/92 backdrop-blur-md">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-1.5 sm:px-6">
           <Logo href="/" />
 
@@ -91,18 +95,22 @@ export function Landing() {
         </div>
       </header>
 
-      <section className="gingham border-b-2 border-dashed border-stitch">
-        <div className="mx-auto grid max-w-5xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[1.25fr_1fr] lg:items-center lg:py-16">
+      {/* Hero dengan latar kain animasi dan ilustrasi botol -> kain */}
+      <section className="gingham relative overflow-hidden border-b border-edge/30">
+        <FabricBackdrop variant="hero" />
+
+        <div className="relative z-10 mx-auto grid max-w-5xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[1.15fr_1fr] lg:items-center lg:py-16">
           <motion.div
             initial={{ opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.45, ease: SMOOTH_EASE }}
             className="patch p-6 sm:p-9"
           >
-            <h1 className="text-[2.7rem] sm:text-6xl">Botol bekasmu bisa ditukar jadi produk daur ulang.</h1>
+            <Chip tone="denim">Daur Ulang PET ke Tekstil</Chip>
+            <h1 className="mt-3 text-[2.7rem] sm:text-6xl">Botol bekasmu ditenun menjadi karya kain baru.</h1>
             <p className="mt-4 max-w-xl text-lg text-ink-soft">
-              Scan QR di tempat sampah Twist &amp; Tally, lalu taruh botol di atas alas. Sensor menghitung jumlah dan tinggi
-              botol, poinnya tercatat atas namamu, dan kamu tinggal klaim di aplikasi.
+              Scan QR di stasiun Twist &amp; Tally, taruh botol di atas alas ukur ultrasonik, kumpulkan poinnya, dan tukar
+              menjadi produk kain daur ulang.
             </p>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               {member ? (
@@ -112,7 +120,7 @@ export function Landing() {
                   </LinkButton>
                   <LinkButton href="/scan" variant="ghost">
                     <Icon name="scan" size={20} />
-                    Scan QR tempat sampah
+                    Scan QR Stasiun
                   </LinkButton>
                 </>
               ) : (
@@ -128,36 +136,27 @@ export function Landing() {
             </div>
           </motion.div>
 
-          <div className="mx-auto w-full max-w-sm lg:max-w-none">
-            <BottleTrio />
-            <motion.figure
-              initial={{ y: -32, rotate: -5, opacity: 0 }}
-              animate={{ y: 0, rotate: 2.5, opacity: 1 }}
-              whileHover={{ rotate: 0, y: -4 }}
-              transition={{ type: "spring", stiffness: 150, damping: 16, delay: 0.4 }}
-              className="mx-auto mt-9 w-full max-w-[17rem] lg:ml-auto lg:mr-0"
-              aria-label="Contoh struk setoran"
-            >
-              <div className="receipt px-6 pb-9 pt-6 text-ink shadow-md">
-                <p className="text-xs font-bold text-ink-soft">CONTOH TAMPILAN STRUK</p>
-                <p className="mt-2 font-display text-3xl font-black">Setoran selesai</p>
-                <dl className="mt-4 grid gap-2 border-y-2 border-dashed border-stitch py-4 text-sm">
-                  <div className="flex justify-between">
-                    <dt>2 botol sedang</dt>
-                    <dd className="font-bold">20 poin</dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt>1 botol besar</dt>
-                    <dd className="font-bold">20 poin</dd>
-                  </div>
-                </dl>
-                <div className="mt-4 flex items-center justify-between">
-                  <span className="font-bold">Total</span>
-                  <Points value={40} size={22} className="text-2xl" />
-                </div>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96, y: 12 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.12, ease: SMOOTH_EASE }}
+            className="relative mx-auto w-full max-w-md"
+          >
+            <div className="patch overflow-hidden p-3 shadow-lg">
+              <div className="overflow-hidden rounded-[12px] bg-paper">
+                <Image
+                  src={heroFabricImg}
+                  alt="Ilustrasi botol plastik PET berubah menjadi lembaran kain tenun berwarna biru denim dan emas"
+                  priority
+                  className="h-auto w-full object-cover"
+                />
               </div>
-            </motion.figure>
-          </div>
+              <div className="mt-3 flex items-center justify-between gap-2 px-1 pb-1">
+                <span className="text-xs font-bold text-ink-soft">PET 100% Terolah ke Serat Kain</span>
+                <Points value={40} size={18} className="text-sm" />
+              </div>
+            </div>
+          </motion.div>
         </div>
       </section>
 
@@ -168,7 +167,7 @@ export function Landing() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.25 }}
             transition={{ duration: 0.4, ease: SMOOTH_EASE }}
-            className="mb-12 grid gap-3 sm:grid-cols-3"
+            className="mb-12 grid gap-4 sm:grid-cols-3"
           >
             <div className="patch patch-denim p-5">
               <p className="text-sm text-on-fill/85">Botol terkumpul bersama</p>
@@ -179,26 +178,31 @@ export function Landing() {
               <p className="mt-1 font-display text-5xl font-black leading-none">{formatNumber(totalPointsIssued)}</p>
             </div>
             <div className="patch p-5">
-              <p className="text-sm text-ink-soft">Tempat sampah pintar aktif</p>
+              <p className="text-sm text-ink-soft">Stasiun sensor aktif</p>
               <p className="mt-1 font-display text-5xl font-black leading-none">{formatNumber(activeBinsCount)}</p>
             </div>
           </motion.div>
         )}
 
-        <div className="grid gap-8 lg:grid-cols-[1fr_1.4fr]">
+        <div className="grid gap-8 lg:grid-cols-[1fr_1.35fr] lg:items-center">
           <motion.div
             initial={{ opacity: 0, y: 14 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.25 }}
             transition={{ duration: 0.4, ease: SMOOTH_EASE }}
+            className="grid gap-5"
           >
-            <h2 className="text-4xl sm:text-5xl">Dari botol sampai poin</h2>
-            <p className="mt-3 max-w-sm text-ink-soft">
-              Satu alur dari tempat sampah ke ponselmu. Tidak ada kartu atau perangkat tambahan.
-            </p>
+            <div>
+              <h2 className="text-4xl sm:text-5xl">Dari botol sampai poin</h2>
+              <p className="mt-3 max-w-sm text-ink-soft">
+                Alur ringkas dari tempat sampah ke akunmu, lalu diolah menjadi produk tekstil bernilai.
+              </p>
+            </div>
+            <BottleTrio scale={0.78} className="py-2" />
           </motion.div>
-          <ol className="relative grid gap-7">
-            <span aria-hidden="true" className="absolute bottom-6 left-[15px] top-6 border-l-2 border-dashed border-stitch" />
+
+          <ol className="relative grid gap-5">
+            <span aria-hidden="true" className="absolute bottom-6 left-[18px] top-6 w-0.5 bg-edge/35" />
             {steps.map((step, i) => (
               <motion.li
                 key={step.title}
@@ -206,12 +210,14 @@ export function Landing() {
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true, amount: 0.3 }}
                 transition={{ duration: 0.38, delay: i * 0.06, ease: SMOOTH_EASE }}
-                className="relative flex gap-4"
+                className="patch relative flex items-start gap-4 p-4"
               >
-                <Kancing size={32} className="relative z-10 shrink-0 bg-paper text-fill [--kancing-hole:#fbf8f1]" />
+                <span className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-fill font-display text-lg font-black text-on-fill">
+                  {i + 1}
+                </span>
                 <div>
                   <h3 className="text-2xl">{step.title}</h3>
-                  <p className="mt-1 max-w-md text-ink-soft">{step.body}</p>
+                  <p className="mt-1 text-sm text-ink-soft sm:text-base">{step.body}</p>
                 </div>
               </motion.li>
             ))}
@@ -224,7 +230,7 @@ export function Landing() {
       {catalog.length > 0 && (
         <section id="hadiah" className="mx-auto max-w-5xl scroll-mt-16 px-4 py-14 sm:px-6">
           <div className="flex flex-wrap items-end justify-between gap-3">
-            <h2 className="text-3xl sm:text-4xl">Hadiah yang bisa kamu tukar</h2>
+            <h2 className="text-3xl sm:text-4xl">Hadiah produk daur ulang</h2>
             <Link href="/tukar" className="inline-flex min-h-11 items-center font-bold underline underline-offset-4">
               Lihat seluruh katalog
             </Link>
@@ -237,9 +243,8 @@ export function Landing() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, amount: 0.2 }}
                 transition={{ duration: 0.35, delay: i * 0.06, ease: SMOOTH_EASE }}
-                whileHover={{ rotate: 1.5, y: -4 }}
-                style={{ transformOrigin: "50% 0" }}
-                className="patch patch-linen flex flex-col gap-2 p-5"
+                whileHover={{ y: -4 }}
+                className="patch flex flex-col gap-2 p-5"
               >
                 {reward.imageUrl && (
                   // Alamat gambar diisi admin dan bisa dari host mana pun, jadi tidak lewat next/image.
@@ -250,7 +255,7 @@ export function Landing() {
                     width={320}
                     height={200}
                     loading="lazy"
-                    className="aspect-[8/5] w-full rounded-[8px] bg-paper-deep object-cover"
+                    className="aspect-[8/5] w-full rounded-[10px] bg-paper-deep object-cover"
                   />
                 )}
                 <span className="text-xs font-bold text-ink-soft">{reward.category}</span>
@@ -262,11 +267,37 @@ export function Landing() {
         </section>
       )}
 
-      <footer id="tentang" className="scroll-mt-16 border-t-2 border-dashed border-stitch px-4 py-8 text-sm text-ink-soft sm:px-6">
+      {/* Showcase transformasi kain + Footer */}
+      <section className="mx-auto max-w-5xl px-4 pb-12 sm:px-6">
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.2 }}
+          className="patch grid items-center gap-6 overflow-hidden p-5 sm:p-7 md:grid-cols-[1.1fr_1fr]"
+        >
+          <div className="overflow-hidden rounded-[12px] bg-paper">
+            <Image
+              src={textileCraftImg}
+              alt="Gulungan kain tenun daur ulang bersama totebag dongker, syal tenun emas, dan pouch kanvas"
+              className="h-auto w-full object-cover"
+            />
+          </div>
+          <div>
+            <Chip tone="thread">Nilai Ekonomi Sirkular</Chip>
+            <h2 className="mt-3 text-3xl sm:text-4xl">Dari limbah plastik jadi serat tekstil</h2>
+            <p className="mt-2.5 text-ink-soft">
+              Twist &amp; Tally menggabungkan pemilahan berbasis sensor ultrasonik dengan pengolahan serat poliester daur
+              ulang untuk menghasilkan kain tenun dan produk sehari-hari yang tahan lama.
+            </p>
+          </div>
+        </motion.div>
+      </section>
+
+      <footer id="tentang" className="scroll-mt-16 border-t border-edge/30 px-4 py-8 text-sm text-ink-soft sm:px-6">
         <div className="mx-auto flex max-w-5xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="max-w-xl">
-            Twist &amp; Tally adalah proyek mahasiswa lintas prodi. Botol PET yang terkumpul dicacah lalu dipres panas
-            menjadi bahan produk baru.
+            Twist &amp; Tally adalah proyek mahasiswa lintas prodi. Botol PET yang terkumpul diproses menjadi bahan
+            produk tekstil dan daur ulang baru.
           </p>
           <Link href="/admin" className="inline-flex min-h-11 items-center font-bold text-ink underline underline-offset-4">
             Panel admin
@@ -277,10 +308,6 @@ export function Landing() {
   );
 }
 
-/**
- * Demo hitung poin di browser: pengunjung menjatuhkan botol ke tempat sampah dan melihat poin naik.
- * Angka poin memakai tier asli dari pengaturan admin. Tidak ada yang disimpan.
- */
 function Calculator({ tiers, expiryMinutes }: { tiers: ReturnType<typeof sortTiers>; expiryMinutes: number }) {
   const [dropped, setDropped] = useState<number[]>([]);
   const [dropId, setDropId] = useState(0);
@@ -294,16 +321,17 @@ function Calculator({ tiers, expiryMinutes }: { tiers: ReturnType<typeof sortTie
   }
 
   return (
-    <section id="simulasi" aria-labelledby="coba" className="scroll-mt-16 border-y-2 border-dashed border-stitch bg-paper-deep/90">
-      <div className="mx-auto grid max-w-5xl gap-8 px-4 py-12 sm:px-6 md:grid-cols-[auto_1fr] md:items-center">
+    <section id="simulasi" aria-labelledby="coba" className="relative scroll-mt-16 overflow-hidden border-y border-edge/30 bg-paper-deep/90">
+      <FabricBackdrop variant="subtle" />
+      <div className="relative z-10 mx-auto grid max-w-5xl gap-8 px-4 py-12 sm:px-6 md:grid-cols-[auto_1fr] md:items-center">
         <BinArt percent={Math.round((dropped.length / DEMO_CAPACITY) * 100)} drop={dropId > 0 ? { id: dropId } : null} className="mx-auto w-56 md:w-64" />
         <div>
           <h2 id="coba" className="text-3xl sm:text-4xl">
             Coba setor botol
           </h2>
           <p className="mt-2 max-w-xl text-ink-soft">
-            Pilih ukuran botol untuk menjatuhkannya ke tempat sampah. Poin dihitung dari tinggi botol, dengan aturan yang
-            sama seperti sensor sungguhan. Ini hanya simulasi di browser.
+            Pilih ukuran botol untuk menjatuhkannya ke tempat sampah. Poin dihitung dari tinggi botol dengan aturan yang
+            sama seperti sensor sungguhan.
           </p>
 
           <ul className="mt-5 grid grid-cols-3 gap-3">
@@ -336,7 +364,7 @@ function Calculator({ tiers, expiryMinutes }: { tiers: ReturnType<typeof sortTie
             ))}
           </ul>
 
-          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-patch bg-card px-5 py-4 shadow-sm" aria-live="polite">
+          <div className="patch mt-5 flex flex-wrap items-center justify-between gap-3 px-5 py-4" aria-live="polite">
             <div>
               <p className="text-sm text-ink-soft">
                 {dropped.length === 0
@@ -352,7 +380,7 @@ function Calculator({ tiers, expiryMinutes }: { tiers: ReturnType<typeof sortTie
                   animate={{ y: 0, opacity: 1 }}
                   className="flex items-center gap-2 font-display text-5xl font-black leading-none"
                 >
-                  <Kancing size={30} className="text-thread [--kancing-hole:#2a1b00]" />
+                  <KainMark size={30} className="text-thread [--kain-line:#2a1b00]" />
                   {total}
                   <span className="text-xl font-bold">poin</span>
                 </motion.p>
@@ -363,7 +391,7 @@ function Calculator({ tiers, expiryMinutes }: { tiers: ReturnType<typeof sortTie
             </Button>
           </div>
           <p className="mt-3 text-sm text-ink-soft">
-            Di tempat sampah asli, poin ini muncul di aplikasimu dan hangus bila tidak diklaim dalam {expiryMinutes} menit.
+            Di stasiun asli, poin ini muncul di aplikasimu dan hangus bila tidak diklaim dalam {expiryMinutes} menit.
           </p>
         </div>
       </div>

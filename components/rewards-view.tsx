@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useCelebration } from "@/lib/celebrate";
 import { useCollection } from "@/lib/hooks";
 import type { Redemption, Reward, WithId } from "@/lib/types";
-import { Kancing } from "./icons";
+import { KainMark } from "./icons";
 import { toast } from "./providers";
 import { VoucherSheet } from "./rows";
 import { Button, Chip, EmptyState, ErrorState, LinkButton, LoadingBlock, PageTitle, Points, Sheet, cn } from "./ui";
@@ -53,7 +53,7 @@ export function RewardsView({ embedded = false }: { embedded?: boolean }) {
         Pilih hadiah, tukar, lalu tunjukkan kode vouchernya ke admin.
       </PageTitle>
 
-      <div className="mb-5 flex items-center justify-between gap-3 rounded-patch border-2 border-dashed border-stitch px-4 py-3">
+      <div className="patch mb-5 flex items-center justify-between gap-3 px-4 py-3">
         <span className="text-ink-soft">Saldomu</span>
         <Points value={balance} size={22} className="text-2xl" />
       </div>
@@ -115,15 +115,15 @@ export function RewardsView({ embedded = false }: { embedded?: boolean }) {
                     type="button"
                     onClick={() => setSelected(reward)}
                     className={cn(
-                      "patch flex h-full w-full flex-col gap-2 p-5 pt-7 text-left transition-transform hover:-translate-y-0.5 active:translate-y-px",
+                      "patch flex h-full w-full flex-col gap-2 p-5 text-left transition-transform hover:-translate-y-0.5 active:translate-y-px",
                       out && "opacity-70",
                     )}
                   >
-                    <span className="absolute left-1/2 top-2 -translate-x-1/2 text-edge">
-                      <Kancing size={14} className="[--kancing-hole:var(--card)]" />
-                    </span>
-                    <span className="flex items-start justify-between gap-2">
-                      <span className="text-xs font-bold text-ink-soft">{reward.category}</span>
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="inline-flex items-center gap-1.5 text-xs font-bold text-ink-soft">
+                        <KainMark size={14} className="text-fill [--kain-line:var(--card)]" />
+                        {reward.category}
+                      </span>
                       {reward.isSample && <Chip>Contoh</Chip>}
                     </span>
                     {reward.imageUrl && (
@@ -192,7 +192,7 @@ export function RewardsView({ embedded = false }: { embedded?: boolean }) {
                   <Points value={balance} />
                 </dd>
               </div>
-              <div className="flex items-center justify-between border-t-2 border-dashed border-stitch pt-2">
+              <div className="flex items-center justify-between border-t border-edge/30 pt-2">
                 <dt>Sisa setelah tukar</dt>
                 <dd className={balance - live.pointsCost < 0 ? "font-bold text-danger" : ""}>
                   {balance - live.pointsCost < 0 ? (

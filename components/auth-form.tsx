@@ -1,10 +1,12 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import { authErrorMessage, useAuth } from "@/lib/auth-context";
-import { BottleTrio } from "./bottle-art";
+import heroFabricImg from "@/public/images/hero-fabric-recycle.jpg";
+import { FabricBackdrop } from "./fabric-backdrop";
 import { Icon } from "./icons";
 import { Logo } from "./logo";
 import { Button, Field, Tabs } from "./ui";
@@ -93,13 +95,20 @@ export function AuthForm() {
 
   return (
     <div className="grid min-h-dvh lg:grid-cols-[1fr_1.1fr]">
-      <aside className="gingham hidden border-r-2 border-dashed border-stitch lg:block">
-        <div className="flex h-full flex-col justify-end gap-10 p-10">
-          <BottleTrio scale={0.85} />
+      <aside className="gingham relative hidden overflow-hidden border-r border-edge/30 lg:block">
+        <FabricBackdrop variant="hero" />
+        <div className="relative z-10 flex h-full flex-col justify-end gap-8 p-10">
+          <div className="patch max-w-md overflow-hidden p-3">
+            <Image
+              src={heroFabricImg}
+              alt="Ilustrasi daur ulang botol menjadi kain tenun"
+              className="h-auto w-full rounded-[10px] object-cover"
+            />
+          </div>
           <div className="patch max-w-md p-7">
             <p className="font-display text-4xl font-black leading-none">Satu akun untuk semua setoranmu.</p>
             <p className="mt-3 text-ink-soft">
-              Poin dari setiap kode QR tersimpan di akun ini, dan bisa ditukar kapan saja selama stok hadiah ada.
+              Poin dari setiap kode QR tersimpan di akun ini, dan bisa ditukar jadi produk daur ulang kapan saja.
             </p>
           </div>
         </div>
@@ -144,9 +153,9 @@ export function AuthForm() {
             </Button>
 
             <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-wider text-ink-soft">
-              <span className="h-px flex-1 border-t-2 border-dashed border-stitch" aria-hidden="true" />
+              <span className="h-px flex-1 bg-edge/35" aria-hidden="true" />
               <span>atau pakai email</span>
-              <span className="h-px flex-1 border-t-2 border-dashed border-stitch" aria-hidden="true" />
+              <span className="h-px flex-1 bg-edge/35" aria-hidden="true" />
             </div>
           </div>
 
