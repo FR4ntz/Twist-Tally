@@ -100,24 +100,24 @@ export function HomeView() {
             <h2 id="saldo" className="sr-only">
               Saldo poin
             </h2>
-            <p className="mt-3 flex items-center gap-3 font-display font-black leading-none">
-              <KainMark size={46} className="shrink-0 text-thread [--kain-line:#2a5090]" />
-              <span className="text-[4.5rem] sm:text-[5.5rem]" aria-hidden="true">
+            <p className="mt-3 flex items-center gap-2.5 font-display font-black leading-none sm:gap-3">
+              <KainMark size={40} className="shrink-0 text-thread [--kain-line:#2a5090]" />
+              <span className="text-[3.5rem] sm:text-[5.5rem]" aria-hidden="true">
                 <CountUp value={profile.points} />
               </span>
               <span className="sr-only">{profile.points} poin</span>
-              <span className="self-end pb-2 text-2xl font-bold" aria-hidden="true">
+              <span className="self-end pb-1.5 text-xl font-bold sm:pb-2 sm:text-2xl" aria-hidden="true">
                 poin
               </span>
             </p>
-            <p className="mt-4 text-on-fill/90">
+            <p className="mt-3 text-sm text-on-fill/90 sm:mt-4 sm:text-base">
               {profile.totalBottles > 0
                 ? `${formatNumber(profile.totalBottles)} botol sudah kamu setor.`
                 : "Belum ada botol yang kamu setor."}
             </p>
           </div>
           <div className="flex justify-center sm:justify-end">
-            <Mascot pose="cheer" size={142} halo />
+            <Mascot pose="cheer" size={142} mobileSize={112} halo />
           </div>
         </motion.div>
 

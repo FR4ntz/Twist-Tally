@@ -402,9 +402,9 @@ export function AdminDeteksi() {
               </div>
 
               <div className="mt-3 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
-                <Mascot pose="idle" size={136} />
+                <Mascot pose="idle" size={136} mobileSize={96} />
                 <div>
-                  <h1 id="judul-pameran" className="text-5xl leading-[0.95] sm:text-6xl lg:text-[4.25rem]">
+                  <h1 id="judul-pameran" className="text-4xl leading-[0.95] sm:text-6xl lg:text-[4.25rem]">
                     Deteksi Ukuran Botol Pintar
                   </h1>
                   <p className="mt-3 max-w-xl text-base text-ink-soft sm:text-lg">
@@ -748,7 +748,7 @@ export function AdminDeteksi() {
 
             <div className="grid gap-2 border-t border-edge/25 pt-4">
               <p className="text-xs font-bold uppercase tracking-wider text-ink-soft">Kategori Poin Botol</p>
-              <ul className="grid grid-cols-3 gap-2.5">
+              <ul className="grid grid-cols-1 gap-2 min-[400px]:grid-cols-3 sm:gap-2.5">
                 {tiers.map((tier, idx) => {
                   const activeMatch = liveTier?.label === tier.label;
                   const rangeText =
