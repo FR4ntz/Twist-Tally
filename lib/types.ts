@@ -88,8 +88,8 @@ export type BottleReading = { heightCm: number; tier: string; points: number };
 export type Deposit = {
   binId: string;
   binName: string;
-  userId: string;
-  userName: string;
+  userId: string | null;
+  userName: string | null;
   bottleCount: number;
   bottles: BottleReading[];
   points: number;

@@ -256,7 +256,7 @@ export function AdminOverview() {
               <li key={d.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-3">
                 <span>
                   <span className="block font-bold">
-                    {d.bottleCount} botol di {d.binName} ({d.binId}) untuk {d.userName}
+                    {d.bottleCount} botol di {d.binName} ({d.binId}) untuk {d.userName ?? "Menunggu scan QR"}
                   </span>
                   <span className="block text-sm text-ink-soft">{formatDateTime(d.createdAt)}</span>
                 </span>

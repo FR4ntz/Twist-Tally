@@ -1,23 +1,26 @@
 "use client";
 
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ActionError,
+  claimDeposit,
   connectToBin,
   disconnectFromBin,
+  expireDeposit,
   liveSession,
   requestSizeDetection,
 } from "@/lib/actions";
 import { useAuth } from "@/lib/auth-context";
-import { extractSampahId, fillPercent } from "@/lib/format";
+import { useCelebration } from "@/lib/celebrate";
+import { extractSampahId, extractTicketId, fillPercent } from "@/lib/format";
 import { useDoc, useNow } from "@/lib/hooks";
 import { readBottle, sortTiers, withDefaults } from "@/lib/points";
-import type { Bin, PointsSettings } from "@/lib/types";
+import type { Bin, Deposit, PointsSettings } from "@/lib/types";
 import { BinArt } from "./bin-art";
-import { ClaimCard, useMyDeposits } from "./claims";
+import { Burst } from "./burst";
+import { ClaimCard, totalMs, useMyDeposits } from "./claims";
 import { Countdown } from "./countdown";
 import { Icon } from "./icons";
 import { toast } from "./providers";
@@ -27,13 +30,195 @@ const LIVE_SENSOR_TTL_MS = 15_000;
 
 export function ConnectView() {
   const searchParams = useSearchParams();
+  const ticketId = extractTicketId(searchParams.get("tiket") ?? "");
+  if (ticketId) return <TicketClaimView ticketId={ticketId} />;
+
   const sampahId = extractSampahId(searchParams.get("sampah") ?? "");
   const initialTinggiRaw = Number(searchParams.get("tinggi") ?? "");
   const initialTinggi =
-    Number.isFinite(initialTinggiRaw) && initialTinggiRaw >= 5 && initialTinggiRaw <= 60
+    Number.isFinite(initialTinggiRaw) && initialTinggiRaw >= 3 && initialTinggiRaw <= 60
       ? Math.round(initialTinggiRaw * 10) / 10
       : null;
 
+  return <BinConnectView sampahId={sampahId} initialTinggi={initialTinggi} />;
+}
+
+/** Alur sederhana: user scan QR tiket sekali pakai -> lihat hasil ukur & hitung mundur -> klaim 1 klik. */
+function TicketClaimView({ ticketId }: { ticketId: string }) {
+  const { user, profile } = useAuth();
+  const depositDoc = useDoc<Deposit>(`deposits/${ticketId}`);
+  const now = useNow(500);
+  const [busy, setBusy] = useState(false);
+  const expiredSentRef = useRef(false);
+
+  const deposit = depositDoc.data;
+  const isExpired =
+    deposit !== null &&
+    deposit !== undefined &&
+    (deposit.status === "expired" || (deposit.status === "pending" && deposit.expiresAt.toMillis() <= now));
+
+  useEffect(() => {
+    if (!deposit || deposit.status !== "pending" || deposit.expiresAt.toMillis() > now) return;
+    if (expiredSentRef.current) return;
+    expiredSentRef.current = true;
+    expireDeposit(ticketId).catch(() => {});
+  }, [deposit, now, ticketId]);
+
+  if (depositDoc.loading) return <LoadingBlock label="Memeriksa tiket QR klaim..." />;
+  if (depositDoc.error) {
+    return (
+      <div className="mx-auto grid max-w-md gap-4">
+        <ErrorState title="Tiket QR belum bisa dibuka">
+          Periksa koneksi internetmu, lalu coba scan ulang QR-nya.
+        </ErrorState>
+        <LinkButton href="/scan" variant="ghost">
+          Scan ulang
+        </LinkButton>
+      </div>
+    );
+  }
+  if (!deposit) {
+    return (
+      <div className="mx-auto grid max-w-md gap-4">
+        <ErrorState title="Tiket QR tidak ditemukan">
+          Kode QR ini tidak terdaftar atau sudah dihapus. Pastikan kamu memindai QR terbaru dari layar deteksi botol.
+        </ErrorState>
+        <LinkButton href="/scan" variant="thread">
+          Kembali ke Scan QR
+        </LinkButton>
+      </div>
+    );
+  }
+
+  const claimedByMe = deposit.status === "claimed" && deposit.userId === user?.uid;
+  const claimedByOther = deposit.status === "claimed" && deposit.userId !== user?.uid;
+
+  async function handleClaim() {
+    if (!user) return;
+    setBusy(true);
+    try {
+      const result = await claimDeposit(user.uid, ticketId, profile?.name);
+      useCelebration.getState().fire(`+${result.points}`, `poin masuk dari ${deposit?.binName ?? "Twist & Tally"}`);
+    } catch (error) {
+      toast.error(error instanceof ActionError ? error.message : "Klaim gagal. Coba lagi sebentar lagi.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const groups = Object.values(
+    deposit.bottles.reduce<Record<string, { tier: string; heightCm: number; count: number; points: number }>>(
+      (acc, b) => {
+        const key = `${b.tier}-${b.heightCm}`;
+        const row = acc[key] ?? { tier: b.tier, heightCm: b.heightCm, count: 0, points: 0 };
+        row.count += 1;
+        row.points += b.points;
+        acc[key] = row;
+        return acc;
+      },
+      {},
+    ),
+  );
+
+  return (
+    <div className="mx-auto grid max-w-md gap-5">
+      <PageTitle title="Klaim Poin Botol" className="mb-0">
+        {deposit.binName} · Tiket sekali pakai
+      </PageTitle>
+
+      {claimedByMe ? (
+        <motion.div
+          initial={{ scale: 0.95, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="patch patch-denim relative grid gap-4 overflow-hidden p-6 text-center"
+        >
+          <Burst count={14} />
+          <div className="relative z-10 grid justify-items-center gap-2">
+            <Chip tone="thread">Berhasil Diklaim</Chip>
+            <h2 className="text-4xl leading-none">Poin Masuk ke Akunmu</h2>
+            <p className="text-on-fill/90">
+              Kamu sudah mengklaim <strong>+{deposit.points} poin</strong> dari tiket QR ini. Tiket sekarang terkunci
+              dan tidak dapat diklaim pengguna lain.
+            </p>
+            <div className="mt-2 grid w-full gap-2">
+              <LinkButton href="/dashboard" variant="thread" className="w-full">
+                Lihat Saldo di Dashboard
+              </LinkButton>
+              <LinkButton href="/scan" variant="ghost" className="w-full border-on-fill/40 text-on-fill hover:bg-on-fill/15">
+                Scan QR Lainnya
+              </LinkButton>
+            </div>
+          </div>
+        </motion.div>
+      ) : claimedByOther ? (
+        <div className="grid gap-4">
+          <ErrorState title="QR Ini Sudah Diklaim Orang Lain">
+            Satu QR hasil deteksi botol hanya berlaku untuk satu orang penemu pertama. Silakan deteksi botol baru di alas
+            sensor lalu scan QR baru yang muncul.
+          </ErrorState>
+          <div className="grid gap-2">
+            <LinkButton href="/scan" variant="thread" className="w-full">
+              Scan QR Baru
+            </LinkButton>
+            <LinkButton href="/dashboard" variant="ghost" className="w-full">
+              Kembali ke Dashboard
+            </LinkButton>
+          </div>
+        </div>
+      ) : isExpired ? (
+        <div className="grid gap-4">
+          <ErrorState title="QR Sudah Hangus">
+            Batas waktu klaim telah habis sebelum poin diklaim. Deteksi ulang botol di alas sensor untuk membuat QR baru.
+          </ErrorState>
+          <LinkButton href="/scan" variant="thread" className="w-full">
+            Scan QR Lainnya
+          </LinkButton>
+        </div>
+      ) : (
+        <motion.article
+          initial={{ y: 18, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ type: "spring", stiffness: 200, damping: 20 }}
+          className="receipt grid gap-4 px-6 pb-9 pt-5"
+          aria-label={`Tiket ${deposit.points} poin dari ${deposit.binName}`}
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <Chip tone="denim">QR Siap Diklaim (1x Pakai)</Chip>
+              <p className="mt-2 font-display text-3xl font-black leading-tight">{deposit.binName}</p>
+            </div>
+            <Countdown expiresAt={deposit.expiresAt} totalMs={totalMs(deposit)} size={62} label="Batas klaim QR" />
+          </div>
+
+          <ul className="grid gap-1.5 border-y-2 border-dashed border-stitch py-3">
+            {groups.map((g) => (
+              <li key={`${g.tier}-${g.heightCm}`} className="flex items-baseline justify-between gap-3">
+                <span>
+                  {g.count} botol {g.tier} ({g.heightCm.toFixed(1)} cm)
+                </span>
+                <span className="font-bold">+{g.points} poin</span>
+              </li>
+            ))}
+          </ul>
+
+          <div className="flex items-center justify-between">
+            <span className="font-bold">Total hadiah</span>
+            <Points value={deposit.points} size={24} className="text-3xl" />
+          </div>
+
+          <Button variant="thread" loading={busy} onClick={handleClaim} className="min-h-14 w-full text-lg">
+            Klaim +{deposit.points} Poin Sekarang
+          </Button>
+          <p className="text-center text-xs text-ink-soft">
+            Klaim sebelum hitung mundur habis. Begitu diklaim, orang lain tidak dapat menggunakan QR ini lagi.
+          </p>
+        </motion.article>
+      )}
+    </div>
+  );
+}
+
+function BinConnectView({ sampahId, initialTinggi }: { sampahId: string | null; initialTinggi: number | null }) {
   const { profile, user } = useAuth();
   const bin = useDoc<Bin>(sampahId ? `bins/${sampahId}` : null);
   const settingsDoc = useDoc<PointsSettings>("settings/points");
@@ -44,8 +229,8 @@ export function ConnectView() {
   if (!sampahId) {
     return (
       <div className="grid gap-4">
-        <ErrorState title="ID tempat sampah tidak valid">
-          ID terdiri dari SB- diikuti 4 huruf atau angka, contoh SB-7K3P. Scan ulang QR di tempat sampah.
+        <ErrorState title="QR tidak valid">
+          Arahkan kamera ke QR hasil deteksi ukuran botol untuk mengklaim poinmu.
         </ErrorState>
         <LinkButton href="/scan" variant="ghost">
           Kembali ke scan
@@ -61,7 +246,7 @@ export function ConnectView() {
     return (
       <div className="grid gap-4">
         <ErrorState title="Tempat sampah tidak ditemukan">
-          Tidak ada tempat sampah dengan ID {sampahId}. Periksa ID yang tercetak di bawah QR.
+          Tidak ada tempat sampah dengan ID {sampahId}. Periksa QR lalu scan ulang.
         </ErrorState>
         <LinkButton href="/scan" variant="ghost">
           Scan ulang
@@ -192,7 +377,7 @@ export function ConnectView() {
               </div>
             </div>
 
-            {liveSensorFresh && liveSensorFresh.heightCm >= 5 && (
+            {liveSensorFresh && liveSensorFresh.heightCm >= 3 && (
               <div className="patch patch-linen flex flex-wrap items-center justify-between gap-3 border-2 border-thread p-4">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-wider text-ink-soft">Sensor alas mendeteksi botol</p>
@@ -260,15 +445,6 @@ export function ConnectView() {
           ))}
         </section>
       )}
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Link href="/dashboard" className="inline-flex min-h-11 items-center font-bold underline underline-offset-4">
-          Kembali ke dashboard
-        </Link>
-        <Link href="/tukar" className="inline-flex min-h-11 items-center font-bold text-denim underline underline-offset-4">
-          Tukar poin ke hadiah
-        </Link>
-      </div>
     </div>
   );
 }

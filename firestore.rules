@@ -82,8 +82,11 @@ service cloud.firestore {
         return changedOnly(['pendingDeposit'])
           && request.resource.data.pendingDeposit == null
           && resource.data.pendingDeposit != null
-          && getAfter(/databases/$(database)/documents/deposits/$(resource.data.pendingDeposit.depositId)).data.userId == request.auth.uid
-          && getAfter(/databases/$(database)/documents/deposits/$(resource.data.pendingDeposit.depositId)).data.status in ['claimed', 'expired'];
+          && ((getAfter(/databases/$(database)/documents/deposits/$(resource.data.pendingDeposit.depositId)).data.status == 'claimed'
+               && getAfter(/databases/$(database)/documents/deposits/$(resource.data.pendingDeposit.depositId)).data.userId == request.auth.uid)
+              || (getAfter(/databases/$(database)/documents/deposits/$(resource.data.pendingDeposit.depositId)).data.status == 'expired'
+                  && (getAfter(/databases/$(database)/documents/deposits/$(resource.data.pendingDeposit.depositId)).data.userId == request.auth.uid
+                      || getAfter(/databases/$(database)/documents/deposits/$(resource.data.pendingDeposit.depositId)).data.userId == null)));
       }
     }
 
@@ -102,11 +105,12 @@ service cloud.firestore {
         && getAfter(/databases/$(database)/documents/redemptions/$(request.resource.data.lastRedeemId)).data.rewardId == rewardId;
     }
 
-    // Setoran dicatat atas nama userId yang tersambung ke sensor. Poin hangus bila tidak diklaim sebelum expiresAt.
+    // Setoran bisa berupa tiket QR sekali pakai (userId == null saat terbit) atau terhubung ke userId. Poin hangus bila lewat expiresAt.
     match /deposits/{depositId} {
-      allow get, list: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow get: if signedIn();
+      allow list: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
       allow create, delete: if isAdmin();
-      allow update: if isAdmin() || claimByOwner() || expireByOwner();
+      allow update: if isAdmin() || claimByOwner() || claimTicket() || expireByOwner();
 
       function claimByOwner() {
         return signedIn()
@@ -119,9 +123,24 @@ service cloud.firestore {
           && existsAfter(/databases/$(database)/documents/users/$(request.auth.uid)/ledger/$(depositId));
       }
 
+      function claimTicket() {
+        return signedIn()
+          && resource.data.userId == null
+          && resource.data.status == 'pending'
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.userName is string
+          && request.resource.data.userName.size() > 0
+          && request.resource.data.userName.size() <= 60
+          && request.resource.data.status == 'claimed'
+          && changedOnly(['userId', 'userName', 'status', 'claimedAt'])
+          && request.resource.data.claimedAt == request.time
+          && request.time < resource.data.expiresAt
+          && existsAfter(/databases/$(database)/documents/users/$(request.auth.uid)/ledger/$(depositId));
+      }
+
       function expireByOwner() {
         return signedIn()
-          && resource.data.userId == request.auth.uid
+          && (resource.data.userId == request.auth.uid || resource.data.userId == null)
           && resource.data.status == 'pending'
           && request.resource.data.status == 'expired'
           && changedOnly(['status'])

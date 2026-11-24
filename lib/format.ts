@@ -41,6 +41,22 @@ export function extractSampahId(input: string): string | null {
   return SAMPAH_ID.test(id) ? id : null;
 }
 
+const TICKET_ID = /^[A-HJ-NP-Z2-9]{8,20}$/;
+
+/** Ekstrak kode tiket klaim sekali pakai dari URL QR (?tiket=...) atau kode polos. */
+export function extractTicketId(input: string): string | null {
+  const text = input.trim();
+  if (!text) return null;
+  let candidate = text;
+  try {
+    candidate = new URL(text).searchParams.get("tiket") ?? "";
+  } catch {
+    // bukan URL lengkap, cek sebagai kode polos
+  }
+  const cleaned = candidate.trim().toUpperCase();
+  return TICKET_ID.test(cleaned) ? cleaned : null;
+}
+
 export function formatCountdown(ms: number): string {
   const total = Math.max(0, Math.ceil(ms / 1000));
   const minutes = Math.floor(total / 60);

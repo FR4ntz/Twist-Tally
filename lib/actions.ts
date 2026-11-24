@@ -108,22 +108,31 @@ export async function publishLiveSensor(
   });
 }
 
-export async function claimDeposit(uid: string, depositId: string): Promise<{ points: number; bottles: number }> {
+export async function claimDeposit(
+  uid: string,
+  depositId: string,
+  claimerName?: string,
+): Promise<{ points: number; bottles: number }> {
   const depositRef = doc(db, "deposits", depositId);
   const userRef = doc(db, "users", uid);
   const ledgerRef = doc(db, "users", uid, "ledger", depositId);
 
   return runTransaction(db, async (tx) => {
     const [depositSnap, userSnap] = await Promise.all([tx.get(depositRef), tx.get(userRef)]);
-    if (!depositSnap.exists()) throw new ActionError("Setoran ini tidak ditemukan.");
+    if (!depositSnap.exists()) throw new ActionError("Tiket QR ini tidak ditemukan.");
     if (!userSnap.exists()) throw new ActionError("Profil belum siap. Muat ulang halaman, lalu coba lagi.");
 
     const deposit = depositSnap.data() as Deposit;
     const user = userSnap.data() as UserDoc;
-    if (deposit.userId !== uid) throw new ActionError("Setoran ini milik pengguna lain.");
-    if (deposit.status === "claimed") throw new ActionError("Setoran ini sudah diklaim.");
+    if (deposit.status === "claimed") {
+      if (deposit.userId === uid) throw new ActionError("Poin dari QR ini sudah kamu klaim sebelumnya.");
+      throw new ActionError("QR ini sudah diklaim oleh orang lain.");
+    }
+    if (deposit.userId !== null && deposit.userId !== uid) {
+      throw new ActionError("Setoran ini milik pengguna lain.");
+    }
     if (deposit.status === "expired" || deposit.expiresAt.toMillis() <= Date.now()) {
-      throw new ActionError("Poin ini sudah hangus karena tidak diklaim tepat waktu.");
+      throw new ActionError("QR ini sudah hangus karena melewati batas waktu klaim.");
     }
 
     const binRef = doc(db, "bins", deposit.binId);
@@ -132,7 +141,18 @@ export async function claimDeposit(uid: string, depositId: string): Promise<{ po
       tx.update(binRef, { pendingDeposit: null });
     }
 
-    tx.update(depositRef, { status: "claimed", claimedAt: serverTimestamp() });
+    if (deposit.userId === null) {
+      const safeName = (claimerName?.trim() || user.name || "Pengguna").slice(0, 60);
+      tx.update(depositRef, {
+        userId: uid,
+        userName: safeName,
+        status: "claimed",
+        claimedAt: serverTimestamp(),
+      });
+    } else {
+      tx.update(depositRef, { status: "claimed", claimedAt: serverTimestamp() });
+    }
+
     tx.update(userRef, {
       points: user.points + deposit.points,
       lifetimePoints: user.lifetimePoints + deposit.points,
@@ -268,6 +288,45 @@ export async function emptyBin(id: string) {
 
 export async function deleteBin(id: string) {
   await deleteDoc(doc(db, "bins", id));
+}
+
+/**
+ * Menerbitkan tiket QR sekali pakai setelah deteksi ukuran botol (tanpa perlu sambungan tempat sampah sebelumnya).
+ * Siapa pun yang pertama kali scan & klaim sebelum kedaluwarsa akan menjadi pemilik poinnya.
+ */
+export async function createUnclaimedDeposit(
+  bin: WithId<Bin>,
+  heightsCm: number[],
+  settings: PointsSettings,
+): Promise<{ depositId: string; bottles: BottleReading[]; points: number; expiresAt: Timestamp }> {
+  const bottles = heightsCm.map((h) => readBottle(h, settings.tiers));
+  const points = sumPoints(bottles);
+  const depositId = newDepositCode();
+  const expiresAt = Timestamp.fromMillis(Date.now() + settings.depositExpiryMinutes * 60_000);
+
+  const batch = writeBatch(db);
+  batch.set(doc(db, "deposits", depositId), {
+    binId: bin.id,
+    binName: bin.name,
+    userId: null,
+    userName: null,
+    bottleCount: bottles.length,
+    bottles,
+    points,
+    status: "pending",
+    claimedAt: null,
+    createdAt: serverTimestamp(),
+    expiresAt,
+  });
+  batch.update(doc(db, "bins", bin.id), {
+    bottleCount: increment(bottles.length),
+    totalBottles: increment(bottles.length),
+    pointsIssued: increment(points),
+    pendingDeposit: { depositId, userName: "QR siap diklaim", bottleCount: bottles.length, points, expiresAt },
+    lastReadingAt: serverTimestamp(),
+  });
+  await batch.commit();
+  return { depositId, bottles, points, expiresAt };
 }
 
 /**
