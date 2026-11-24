@@ -401,8 +401,8 @@ export function AdminDeteksi() {
                 <Chip tone="denim">Unit {bin.sampahId}</Chip>
               </div>
 
-              <div className="mt-3 flex items-center gap-4">
-                <Mascot pose="idle" size={88} className="hidden sm:inline-flex" />
+              <div className="mt-3 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+                <Mascot pose="idle" size={136} />
                 <div>
                   <h1 id="judul-pameran" className="text-5xl leading-[0.95] sm:text-6xl lg:text-[4.25rem]">
                     Deteksi Ukuran Botol Pintar
@@ -854,7 +854,7 @@ export function AdminDeteksi() {
 
                   {claimSuccess ? (
                     <div className="relative z-10 grid justify-items-center gap-3">
-                      <Mascot pose="cheer" size={102} />
+                      <Mascot pose="cheer" size={148} />
                       <Chip tone="denim">Berhasil Diklaim</Chip>
                       <h3 className="font-display text-4xl font-black leading-none">
                         {liveDeposit?.userName ?? sentDeposit.userName} Dapat +{sentDeposit.points} Poin!

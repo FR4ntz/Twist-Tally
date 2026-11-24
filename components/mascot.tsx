@@ -17,7 +17,7 @@ export type MascotPose = keyof typeof poses;
 
 export function Mascot({
   pose = "idle",
-  size = 110,
+  size = 136,
   float = true,
   halo = false,
   className,
@@ -33,11 +33,11 @@ export function Mascot({
 
   return (
     <motion.div
-      animate={!float || reduce ? undefined : { y: [0, -5, 0] }}
-      transition={{ duration: 3.4, repeat: Infinity, ease: "easeInOut" }}
+      animate={!float || reduce ? undefined : { y: [0, -6, 0] }}
+      transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }}
       className={cn(
-        "relative inline-flex shrink-0 items-center justify-center select-none",
-        halo && "rounded-full bg-card/85 p-3 shadow-[0_4px_14px_rgb(29_33_88/0.16)]",
+        "inline-flex shrink-0 items-center justify-center select-none",
+        halo && "rounded-[24px] border border-ink/15 bg-card/95 px-5 py-3 shadow-[0_8px_22px_rgb(29_33_88/0.22)]",
         className,
       )}
     >
@@ -45,7 +45,7 @@ export function Mascot({
         src={asset.src}
         alt={asset.alt}
         style={{ height: size, width: "auto" }}
-        className="object-contain drop-shadow-[0_4px_8px_rgb(29_33_88/0.12)]"
+        className="object-contain drop-shadow-[0_6px_12px_rgb(29_33_88/0.16)]"
       />
     </motion.div>
   );

@@ -93,33 +93,32 @@ export function HomeView() {
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ type: "spring", stiffness: 220, damping: 22 }}
-          className="patch patch-denim overflow-hidden p-6 sm:p-7"
+          className="patch patch-denim grid items-center gap-5 p-6 sm:grid-cols-[1fr_auto] sm:p-7"
         >
-          <Mascot
-            pose="cheer"
-            size={84}
-            halo
-            className="pointer-events-none absolute right-4 top-4 hidden sm:inline-flex"
-          />
-          <p className="text-on-fill/85">Halo, {profile.name}</p>
-          <h2 id="saldo" className="sr-only">
-            Saldo poin
-          </h2>
-          <p className="mt-3 flex items-center gap-3 font-display font-black leading-none">
-            <KainMark size={46} className="shrink-0 text-thread [--kain-line:#2a5090]" />
-            <span className="text-[4.5rem] sm:text-[5.5rem]" aria-hidden="true">
-              <CountUp value={profile.points} />
-            </span>
-            <span className="sr-only">{profile.points} poin</span>
-            <span className="self-end pb-2 text-2xl font-bold" aria-hidden="true">
-              poin
-            </span>
-          </p>
-          <p className="mt-4 text-on-fill/90">
-            {profile.totalBottles > 0
-              ? `${formatNumber(profile.totalBottles)} botol sudah kamu setor.`
-              : "Belum ada botol yang kamu setor."}
-          </p>
+          <div className="min-w-0">
+            <p className="text-on-fill/85">Halo, {profile.name}</p>
+            <h2 id="saldo" className="sr-only">
+              Saldo poin
+            </h2>
+            <p className="mt-3 flex items-center gap-3 font-display font-black leading-none">
+              <KainMark size={46} className="shrink-0 text-thread [--kain-line:#2a5090]" />
+              <span className="text-[4.5rem] sm:text-[5.5rem]" aria-hidden="true">
+                <CountUp value={profile.points} />
+              </span>
+              <span className="sr-only">{profile.points} poin</span>
+              <span className="self-end pb-2 text-2xl font-bold" aria-hidden="true">
+                poin
+              </span>
+            </p>
+            <p className="mt-4 text-on-fill/90">
+              {profile.totalBottles > 0
+                ? `${formatNumber(profile.totalBottles)} botol sudah kamu setor.`
+                : "Belum ada botol yang kamu setor."}
+            </p>
+          </div>
+          <div className="flex justify-center sm:justify-end">
+            <Mascot pose="cheer" size={142} halo />
+          </div>
         </motion.div>
 
         <div className="patch flex flex-col justify-between gap-4 p-5">

@@ -109,9 +109,9 @@ export function AdminOverview() {
                 {binList.length} unit tempat sampah aktif menerbitkan {formatNumber(issued)} poin bagi peserta.
               </p>
             </div>
-            <div className="hidden items-end gap-3 sm:flex">
-              <Mascot pose="idle" size={102} halo />
-              <BottleTrio scale={0.46} />
+            <div className="flex items-end justify-center gap-3 sm:justify-end">
+              <Mascot pose="idle" size={142} halo />
+              <BottleTrio scale={0.46} className="hidden sm:block" />
             </div>
           </div>
         </motion.div>

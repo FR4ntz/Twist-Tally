@@ -106,8 +106,8 @@ export function AuthForm() {
               className="h-auto w-full rounded-[10px] object-cover"
             />
           </div>
-          <div className="patch flex max-w-md items-center gap-4 p-6">
-            <Mascot pose="calm" size={88} />
+          <div className="patch flex max-w-md items-center gap-5 p-6">
+            <Mascot pose="calm" size={132} />
             <div>
               <p className="font-display text-3xl font-black leading-none">Satu akun untuk semua setoranmu.</p>
               <p className="mt-2 text-sm text-ink-soft">

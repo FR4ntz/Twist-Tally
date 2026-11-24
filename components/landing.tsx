@@ -198,9 +198,9 @@ export function Landing() {
                 Alur ringkas dari tempat sampah ke ponselmu, lalu botol PET diproses menjadi produk daur ulang baru.
               </p>
             </div>
-            <div className="flex items-end gap-4 py-2">
-              <Mascot pose="idle" size={120} />
-              <BottleTrio scale={0.72} />
+            <div className="flex flex-wrap items-end justify-center gap-5 py-2 sm:justify-start">
+              <Mascot pose="idle" size={168} />
+              <BottleTrio scale={0.76} />
             </div>
           </motion.div>
 
@@ -270,10 +270,10 @@ export function Landing() {
         </section>
       )}
 
-      <footer id="tentang" className="scroll-mt-16 border-t border-edge/30 px-4 py-8 text-sm text-ink-soft sm:px-6">
-        <div className="mx-auto flex max-w-5xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3.5">
-            <Mascot pose="calm" size={62} float={false} />
+      <footer id="tentang" className="scroll-mt-16 border-t border-edge/30 px-4 py-10 text-sm text-ink-soft sm:px-6">
+        <div className="mx-auto flex max-w-5xl flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+            <Mascot pose="calm" size={104} float={false} />
             <p className="max-w-xl">
               Twist &amp; Tally adalah proyek mahasiswa lintas prodi. Botol PET yang terkumpul dicacah lalu dipres panas
               menjadi bahan produk baru.
@@ -344,9 +344,9 @@ function Calculator({ tiers, expiryMinutes }: { tiers: ReturnType<typeof sortTie
             ))}
           </ul>
 
-          <div className="patch mt-5 flex flex-wrap items-center justify-between gap-3 px-5 py-4" aria-live="polite">
-            <div className="flex items-center gap-3">
-              <Mascot pose={total > 0 ? "cheer" : "idle"} size={66} />
+          <div className="patch mt-5 flex flex-wrap items-center justify-between gap-4 px-5 py-4" aria-live="polite">
+            <div className="flex items-center gap-4">
+              <Mascot pose={total > 0 ? "cheer" : "idle"} size={114} />
               <div>
                 <p className="text-sm text-ink-soft">
                   {dropped.length === 0
